@@ -1,0 +1,131 @@
+# ==========================================================
+# Potable - Proyecto de graduacion
+# ==========================================================
+
+# ----------------------------------------------------------
+# Configuracion local y secretos
+# ----------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.jks
+*.keystore
+key.properties
+!.env.example
+
+# ----------------------------------------------------------
+# Dart / Flutter
+# ----------------------------------------------------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+.pub-cache/
+build/
+coverage/
+doc/api/
+migrate_working_dir/
+.widget_preview/
+*.dart.js
+*.info.json
+*.js.deps
+*.js.map
+
+# Simbolos y ofuscacion
+app.*.symbols
+app.*.map.json
+
+# NOTA: pubspec.lock SI se versiona.
+# Es una aplicacion, no un paquete: fijar las versiones exactas
+# garantiza que el proyecto compile igual en otra maquina.
+
+# ----------------------------------------------------------
+# Android
+# ----------------------------------------------------------
+**/android/.gradle/
+**/android/.kotlin/
+**/android/captures/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ----------------------------------------------------------
+# iOS / macOS
+# ----------------------------------------------------------
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework/
+**/ios/Flutter/Flutter.framework/
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+*.ipa
+*.dSYM.zip
+
+# ----------------------------------------------------------
+# Windows / Linux
+# ----------------------------------------------------------
+**/windows/flutter/ephemeral/
+**/windows/flutter/generated_plugin*
+**/linux/flutter/ephemeral/
+**/linux/flutter/generated_plugin*
+*.exe
+*.msix
+
+# ----------------------------------------------------------
+# Web
+# ----------------------------------------------------------
+lib/generated_plugin_registrant.dart
+
+# ----------------------------------------------------------
+# Editores e IDE
+# ----------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+!.vscode/launch.json
+!.vscode/settings.json
+*.swp
+*.swo
+.history/
+.atom/
+.svn/
+
+# ----------------------------------------------------------
+# Sistema operativo
+# ----------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.Spotlight-V100
+.Trashes
+*~
+
+# ----------------------------------------------------------
+# Varios
+# ----------------------------------------------------------
+*.log
+*.class
+*.pyc
+__pycache__/
+node_modules/
