@@ -3,6 +3,8 @@ import '../dominio/modelos.dart';
 abstract class Repositorio {
   Future<Usuario> autenticar(String correo, String clave);
 
+  Future<Usuario?> restaurarSesion();
+
   Future<void> cerrarSesion();
 
   bool get haySesion;
@@ -14,6 +16,12 @@ abstract class Repositorio {
   Future<Organizacion> organizacion();
 
   Future<List<Parametro>> parametros();
+
+  Future<List<Usuario>> usuarios();
+
+  Future<Usuario> guardarUsuario(Usuario usuario, {String? clave});
+
+  Future<void> eliminarUsuario(int usuarioId);
 
   Future<List<Zona>> zonas();
 
@@ -29,6 +37,10 @@ abstract class Repositorio {
 
   Future<List<Dispositivo>> dispositivos();
 
+  Future<Dispositivo> guardarDispositivo(Dispositivo dispositivo);
+
+  Future<void> eliminarDispositivo(int dispositivoId);
+
   Future<List<Muestra>> muestras();
 
   Future<Muestra> guardarMuestra(Muestra muestra);
@@ -40,6 +52,8 @@ abstract class Repositorio {
   Future<Map<int, double>> leerSensores(int puntoId);
 
   Future<int> sincronizar();
+
+  Future<void> descargarCatalogo();
 
   Future<List<RegistroAuditoria>> auditoria({int limite = 200});
 }

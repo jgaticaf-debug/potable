@@ -8,7 +8,9 @@ class BaseDatosLocal {
   BaseDatosLocal._();
 
   static const nombreArchivo = 'potable.db';
-  static const version = 1;
+  // Si cambio el esquema tengo que subir esto Y agregar su bloque en
+  // _migraciones. Si no, los telefonos ya instalados se quedan atras.
+  static const version = 3;
 
   static Database? _instancia;
 
@@ -35,12 +37,12 @@ class BaseDatosLocal {
       version: version,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: crearEsquema,
-      onUpgrade: _migrar,
+      onUpgrade: migrar,
+      onDowngrade: _rechazarRetroceso,
     );
     return _instancia!;
   }
 
-  /// Base efimera en memoria, para pruebas.
   static Future<Database> abrirEnMemoria() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -50,6 +52,7 @@ class BaseDatosLocal {
         version: version,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: crearEsquema,
+        singleInstance: false,
       ),
     );
   }
@@ -59,8 +62,6 @@ class BaseDatosLocal {
     _instancia = null;
   }
 
-  /// Crea el esquema completo. Publico para que las pruebas usen
-  /// exactamente el mismo que produccion.
   static Future<void> crearEsquema(Database db, [int? version]) async {
     final lote = db.batch();
 
@@ -133,9 +134,6 @@ class BaseDatosLocal {
       )
     ''');
 
-    // fecha_hora  = cuando se tomo la muestra en el punto
-    // creado_en   = cuando quedo registrada en el dispositivo
-    // Las dos rara vez coinciden y la auditoria necesita ambas.
     lote.execute('''
       CREATE TABLE muestras (
         id                     INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,7 +147,8 @@ class BaseDatosLocal {
         parametro_limitante_id INTEGER REFERENCES parametros(id),
         observaciones          TEXT    NOT NULL DEFAULT '',
         sincronizada           INTEGER NOT NULL DEFAULT 0,
-        fecha_sincronizacion   TEXT
+        fecha_sincronizacion   TEXT,
+        id_servidor            INTEGER
       )
     ''');
 
@@ -171,14 +170,12 @@ class BaseDatosLocal {
         punto_id   INTEGER NOT NULL REFERENCES puntos(id),
         tipo       TEXT    NOT NULL,
         detalle    TEXT    NOT NULL,
-        fecha      TEXT    NOT NULL,
-        atendida   INTEGER NOT NULL DEFAULT 0
+        fecha       TEXT    NOT NULL,
+        atendida    INTEGER NOT NULL DEFAULT 0,
+        id_servidor INTEGER
       )
     ''');
 
-    // Bitacora inmutable: solo admite INSERT.
-    // El nombre y el rol se copian al momento del hecho para que el registro
-    // siga siendo legible aunque el usuario cambie de rol o sea dado de baja.
     lote.execute('''
       CREATE TABLE auditoria (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,11 +207,86 @@ class BaseDatosLocal {
     );
     lote.execute('CREATE INDEX idx_auditoria_fecha ON auditoria(fecha DESC)');
 
+    lote.execute(
+      'CREATE UNIQUE INDEX idx_zonas_nombre ON zonas(organizacion_id, nombre)',
+    );
+    lote.execute('CREATE INDEX idx_alertas_atendida ON alertas(atendida)');
+    lote.execute('CREATE INDEX idx_auditoria_usuario ON auditoria(usuario_id)');
+
+    lote.execute(
+      'CREATE UNIQUE INDEX idx_muestras_servidor ON muestras(id_servidor) '
+      'WHERE id_servidor IS NOT NULL',
+    );
+    lote.execute(
+      'CREATE UNIQUE INDEX idx_alertas_servidor ON alertas(id_servidor) '
+      'WHERE id_servidor IS NOT NULL',
+    );
+
     await lote.commit(noResult: true);
   }
 
-  static Future<void> _migrar(Database db, int anterior, int nueva) async {
-    // Sin migraciones todavia: la version 1 es la primera publicada.
-    // Cada cambio de esquema sube `version` y agrega su bloque aqui.
+  static final Map<int, Future<void> Function(Database)> _migraciones = {
+    2: _v2NombresDeZonaUnicos,
+    3: _v3IdentidadEnElServidor,
+  };
+
+  static Future<void> migrar(Database db, int anterior, int nueva) async {
+    for (var v = anterior + 1; v <= nueva; v++) {
+      final paso = _migraciones[v];
+      if (paso == null) {
+        throw StateError(
+          'Falta la migracion a la version $v. Agreguela en '
+          'BaseDatosLocal._migraciones.',
+        );
+      }
+      await paso(db);
+    }
+  }
+
+  static Future<void> _rechazarRetroceso(
+    Database db,
+    int anterior,
+    int nueva,
+  ) async {
+    throw StateError(
+      'La base local esta en la version $anterior y esta aplicacion espera '
+      'la $nueva. Desinstale y vuelva a instalar para continuar.',
+    );
+  }
+
+  static Future<void> _v3IdentidadEnElServidor(Database db) async {
+    await db.execute('ALTER TABLE muestras ADD COLUMN id_servidor INTEGER');
+    await db.execute('ALTER TABLE alertas ADD COLUMN id_servidor INTEGER');
+
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_muestras_servidor ON muestras(id_servidor) '
+      'WHERE id_servidor IS NOT NULL',
+    );
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_alertas_servidor ON alertas(id_servidor) '
+      'WHERE id_servidor IS NOT NULL',
+    );
+  }
+
+  static Future<void> _v2NombresDeZonaUnicos(Database db) async {
+    // Puede haber duplicados de antes: los renombro antes de poner el indice
+    // unico, si no la migracion truena.
+    await db.execute('''
+      UPDATE zonas
+      SET nombre = nombre || ' (' || id || ')'
+      WHERE id NOT IN (
+        SELECT MIN(id) FROM zonas GROUP BY organizacion_id, nombre
+      )
+    ''');
+
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_zonas_nombre ON zonas(organizacion_id, nombre)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_alertas_atendida ON alertas(atendida)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_auditoria_usuario ON auditoria(usuario_id)',
+    );
   }
 }

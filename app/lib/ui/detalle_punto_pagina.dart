@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsivo.dart';
+
 import '../core/formato.dart';
 import '../core/tema.dart';
 import '../datos/estado_app.dart';
@@ -61,8 +63,12 @@ class _DetallePuntoPaginaState extends State<DetallePuntoPagina> {
 
     return Scaffold(
       appBar: AppBar(title: Text(punto.nombre)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      body: Refrescable(
+        estado: estado,
+        child: ContenidoCentrado(
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           Card(
             child: Padding(
@@ -139,7 +145,7 @@ class _DetallePuntoPaginaState extends State<DetallePuntoPagina> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    height: 34,
+                    height: MediaQuery.textScalerOf(context).scale(34),
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
@@ -206,7 +212,9 @@ class _DetallePuntoPaginaState extends State<DetallePuntoPagina> {
                 ],
               ),
             ),
-        ],
+          ],
+        ),
+      ),
       ),
     );
   }

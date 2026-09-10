@@ -8,7 +8,7 @@ import 'repositorio.dart';
 import 'semilla.dart';
 
 class RepositorioMock implements Repositorio {
-  RepositorioMock({ClienteApi? cliente})
+  RepositorioMock({Cliente? cliente})
       : _cliente = cliente ?? ClienteApi(MockApi()) {
     _motor = MotorEvaluacion(Semilla.parametros);
     _muestras = Semilla.muestras(_motor);
@@ -30,7 +30,7 @@ class RepositorioMock implements Repositorio {
   late int _siguientePuntoId;
   int _siguienteAlertaId = 1;
 
-  final ClienteApi _cliente;
+  final Cliente _cliente;
 
   final _azar = Random();
 
@@ -65,6 +65,9 @@ class RepositorioMock implements Repositorio {
   }
 
   @override
+  Future<Usuario?> restaurarSesion() async => null;
+
+  @override
   Future<void> cerrarSesion() => _cliente.logout();
 
   @override
@@ -72,6 +75,16 @@ class RepositorioMock implements Repositorio {
 
   @override
   Future<List<Parametro>> parametros() => _latencia(Semilla.parametros, 150);
+
+  @override
+  Future<List<Usuario>> usuarios() => _latencia(Semilla.usuarios, 140);
+
+  @override
+  Future<Usuario> guardarUsuario(Usuario usuario, {String? clave}) async =>
+      usuario;
+
+  @override
+  Future<void> eliminarUsuario(int usuarioId) async {}
 
   @override
   Future<List<Zona>> zonas() =>
@@ -169,6 +182,13 @@ class RepositorioMock implements Repositorio {
       _latencia(List<Dispositivo>.unmodifiable(_dispositivos), 200);
 
   @override
+  Future<Dispositivo> guardarDispositivo(Dispositivo dispositivo) async =>
+      dispositivo;
+
+  @override
+  Future<void> eliminarDispositivo(int dispositivoId) async {}
+
+  @override
   Future<List<Muestra>> muestras() =>
       _latencia(List<Muestra>.unmodifiable(_muestras), 380);
 
@@ -184,6 +204,7 @@ class RepositorioMock implements Repositorio {
       puntoId: muestra.puntoId,
       usuarioId: muestra.usuarioId,
       fechaHora: muestra.fechaHora,
+      creadoEn: muestra.creadoEn,
       latitudCaptura: muestra.latitudCaptura,
       longitudCaptura: muestra.longitudCaptura,
       clasificacionGlobal: muestra.clasificacionGlobal,
@@ -230,6 +251,9 @@ class RepositorioMock implements Repositorio {
     }
     return lectura;
   }
+
+  @override
+  Future<void> descargarCatalogo() async {}
 
   @override
   Future<List<RegistroAuditoria>> auditoria({int limite = 200}) async =>

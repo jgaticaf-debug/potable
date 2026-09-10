@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/formato.dart';
 import '../../core/tema.dart';
+import '../../datos/estado_app.dart';
 import '../../dominio/modelos.dart';
 
 class InsigniaClasificacion extends StatelessWidget {
@@ -67,7 +68,8 @@ class TarjetaIndicador extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
+            Flexible(
+              child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(7),
@@ -81,6 +83,8 @@ class TarjetaIndicador extends StatelessWidget {
                 Expanded(
                   child: Text(
                     titulo,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12,
                       height: 1.2,
@@ -89,11 +93,14 @@ class TarjetaIndicador extends StatelessWidget {
                     ),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 10),
             Text(
               valor,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -102,9 +109,15 @@ class TarjetaIndicador extends StatelessWidget {
             ),
             if (detalle != null) ...[
               const SizedBox(height: 4),
-              Text(
-                detalle!,
-                style: const TextStyle(fontSize: 11.5, color: Colors.black45),
+              // Flexible para que el detalle se recorte antes de
+              // desbordar la celda. Hay prueba de esto.
+              Flexible(
+                child: Text(
+                  detalle!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, color: Colors.black45),
+                ),
               ),
             ],
           ],
@@ -264,5 +277,17 @@ class FilaMedicion extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class Refrescable extends StatelessWidget {
+  const Refrescable({super.key, required this.estado, required this.child});
+
+  final EstadoApp estado;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(onRefresh: estado.refrescar, child: child);
   }
 }

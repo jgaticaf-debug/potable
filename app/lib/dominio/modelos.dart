@@ -65,6 +65,21 @@ class Usuario {
   final RolUsuario rol;
   final bool activo;
 
+  Usuario copyCon({
+    String? nombre,
+    String? correo,
+    RolUsuario? rol,
+    bool? activo,
+  }) =>
+      Usuario(
+        id: id,
+        organizacionId: organizacionId,
+        nombre: nombre ?? this.nombre,
+        correo: correo ?? this.correo,
+        rol: rol ?? this.rol,
+        activo: activo ?? this.activo,
+      );
+
   String get iniciales {
     final partes = nombre.trim().split(RegExp(r'\s+'));
     if (partes.length == 1) return partes.first.substring(0, 1).toUpperCase();
@@ -248,7 +263,7 @@ class Muestra {
     required this.puntoId,
     required this.usuarioId,
     required this.fechaHora,
-    DateTime? creadoEn,
+    required this.creadoEn,
     this.latitudCaptura,
     this.longitudCaptura,
     required this.clasificacionGlobal,
@@ -257,17 +272,14 @@ class Muestra {
     this.sincronizada = false,
     this.fechaSincronizacion,
     this.observaciones = '',
-    // ignore: prefer_initializing_formals
-  }) : _creadoEn = creadoEn;
+  });
 
   final int id;
   final int puntoId;
   final int usuarioId;
   final DateTime fechaHora;
 
-  final DateTime? _creadoEn;
-
-  DateTime get creadoEn => _creadoEn ?? fechaHora;
+  final DateTime creadoEn;
 
   final double? latitudCaptura;
   final double? longitudCaptura;
@@ -337,6 +349,7 @@ class Alerta {
 
 enum AccionAuditoria {
   inicioSesion('Inicio de sesion', 'sesion'),
+  sesionReanudada('Sesion reanudada', 'sesion'),
   cierreSesion('Cierre de sesion', 'sesion'),
   registroMuestra('Registro de muestra', 'muestra'),
   lecturaSensor('Lectura de sensor', 'muestra'),
@@ -344,6 +357,12 @@ enum AccionAuditoria {
   altaZona('Alta de zona', 'zona'),
   edicionZona('Edicion de zona', 'zona'),
   bajaZona('Baja de zona', 'zona'),
+  altaDispositivo('Alta de equipo', 'equipo'),
+  edicionDispositivo('Edicion de equipo', 'equipo'),
+  bajaDispositivo('Baja de equipo', 'equipo'),
+  altaUsuario('Alta de usuario', 'usuario'),
+  edicionUsuario('Edicion de usuario', 'usuario'),
+  bajaUsuario('Baja de usuario', 'usuario'),
   altaPunto('Alta de punto', 'punto'),
   edicionPunto('Edicion de punto', 'punto'),
   bajaPunto('Baja de punto', 'punto'),

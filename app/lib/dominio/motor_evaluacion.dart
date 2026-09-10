@@ -26,6 +26,8 @@ class MotorEvaluacion {
   }
 
   Clasificacion clasificarValor(Parametro p, double valor) {
+    // Fuera de norma = incumplimiento. Dentro de norma pero fuera de la
+    // banda = riesgo. La banda es nuestra, no de COGUANOR.
     final fueraDeNorma = (p.limiteMin != null && valor < p.limiteMin!) ||
         (p.limiteMax != null && valor > p.limiteMax!);
     if (fueraDeNorma) return Clasificacion.incumplimiento;
@@ -85,6 +87,8 @@ class MotorEvaluacion {
     for (final m in mediciones) {
       if (m.clasificacion != global) continue;
       final p = parametroPorId(m.parametroId)!;
+    // Si empatan, gana el critico (cloro, coliformes) y entre iguales
+    // el que este mas lejos de su limite.
       final peso =
           (p.critico ? 1000 : 0) + desviacionRelativa(p, m.valor);
       if (peso > mejorPeso) {

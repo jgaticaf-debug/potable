@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsivo.dart';
+
 import '../core/tema.dart';
 import '../datos/estado_app.dart';
 import 'admin_pagina.dart';
@@ -143,7 +145,16 @@ class _InicioShellState extends State<InicioShell> {
           ),
         ],
       ),
-      body: IndexedStack(index: _indice, children: paginas),
+      body: Column(
+        children: [
+          if (estado.sinConexion) const _AvisoSinConexion(),
+          Expanded(
+            child: ContenidoCentrado(
+              child: IndexedStack(index: _indice, children: paginas),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _indice,
         onDestinationSelected: (i) => setState(() => _indice = i),
@@ -178,6 +189,32 @@ class _InicioShellState extends State<InicioShell> {
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings_rounded),
             label: 'Admin',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvisoSinConexion extends StatelessWidget {
+  const _AvisoSinConexion();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Tema.ambar.withValues(alpha: 0.16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 16, color: Tema.ambar),
+          const SizedBox(width: 9),
+          const Expanded(
+            child: Text(
+              'Sin conexion con el servidor. Puede seguir registrando '
+              'muestras: se enviaran cuando vuelva la red.',
+              style: TextStyle(fontSize: 11.5, height: 1.35),
+            ),
           ),
         ],
       ),

@@ -6,7 +6,10 @@ plugins {
 
 android {
     namespace = "gt.edu.umg.potable"
-    compileSdk = flutter.compileSdkVersion
+    // Fijo en 37 porque permission_handler_android lo exige. Al subirlo dejo
+    // de seguir el valor de Flutter, asi que hay que revisarlo si algun dia
+    // otro plugin pide mas.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

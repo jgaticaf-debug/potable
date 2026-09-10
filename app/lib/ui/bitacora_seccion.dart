@@ -6,10 +6,6 @@ import '../datos/estado_app.dart';
 import '../dominio/modelos.dart';
 import 'widgets/comunes.dart';
 
-/// Bitacora de auditoria: quien hizo que y cuando.
-///
-/// Es el respaldo documental frente a una auditoria sanitaria. La tabla solo
-/// admite inserciones: ninguna pantalla edita ni borra un registro.
 class BitacoraSeccion extends StatefulWidget {
   const BitacoraSeccion({super.key, required this.estado});
 
@@ -79,7 +75,7 @@ class _BitacoraSeccionState extends State<BitacoraSeccion> {
 
           if (entidades.length > 1)
             SizedBox(
-              height: 36,
+              height: MediaQuery.textScalerOf(context).scale(36),
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
@@ -154,6 +150,7 @@ class _Fila extends StatelessWidget {
     'muestra': Icons.science_outlined,
     'zona': Icons.map_outlined,
     'punto': Icons.place_outlined,
+    'equipo': Icons.memory_rounded,
     'alerta': Icons.notifications_active_outlined,
     'sistema': Icons.sync_rounded,
   };
@@ -163,6 +160,7 @@ class _Fila extends StatelessWidget {
     'muestra': Tema.cian,
     'zona': Tema.azul,
     'punto': Tema.azul,
+    'equipo': Tema.cian,
     'alerta': Tema.ambar,
     'sistema': Tema.verde,
   };

@@ -1,0 +1,18 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-azul: #0b6fa4;
+  --color-azul-oscuro: #063d5c;
+  --color-cian: #16a9c7;
+
+  --color-apto: #1e8e5a;
+  --color-riesgo: #d98a0b;
+  --color-incumplimiento: #c0392b;
+
+  --color-lienzo: #f4f7f9;
+}
+
+body {
+  background-color: var(--color-lienzo);
+  color: #1b2733;
+}

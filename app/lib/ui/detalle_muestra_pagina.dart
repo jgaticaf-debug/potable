@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsivo.dart';
+
 import '../core/formato.dart';
 import '../core/tema.dart';
 import '../datos/estado_app.dart';
@@ -31,8 +33,9 @@ class DetalleMuestraPagina extends StatelessWidget {
       appBar: AppBar(
         title: Text('Muestra #${muestra.id}'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      body: ContenidoCentrado(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           if (recienGuardada)
             Container(
@@ -157,8 +160,9 @@ class DetalleMuestraPagina extends StatelessWidget {
                 ),
               ),
             ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -178,14 +182,16 @@ class _Dato extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 122,
+          Expanded(
+            flex: 4,
             child: Text(
               etiqueta,
               style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ),
+          const SizedBox(width: 10),
           Expanded(
+            flex: 6,
             child: Text(
               valor,
               style: TextStyle(

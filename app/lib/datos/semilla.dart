@@ -305,6 +305,7 @@ class Semilla {
               puntoId: punto.id,
               usuarioId: usuarios[azar.nextInt(2)].id,
               fechaHora: fecha,
+              creadoEn: fecha.add(const Duration(hours: 3)),
               latitudCaptura: punto.latitud,
               longitudCaptura: punto.longitud,
               clasificacionGlobal: evaluacion.clasificacion,

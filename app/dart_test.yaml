@@ -1,0 +1,6 @@
+tags:
+  integracion:
+    # Se omiten solas si el backend no responde. Para correr solo estas:
+    #   flutter test --tags integracion
+    # Para excluirlas explicitamente:
+    #   flutter test --exclude-tags integracion

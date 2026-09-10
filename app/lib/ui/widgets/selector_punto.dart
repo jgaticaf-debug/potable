@@ -5,11 +5,6 @@ import '../../datos/estado_app.dart';
 import '../../dominio/modelos.dart';
 import 'comunes.dart';
 
-/// Selector de punto de muestreo con busqueda.
-///
-/// Una empresa con varias plantaciones acumula decenas de puntos, y un
-/// desplegable comun obliga a recorrerlos todos. Este abre una hoja con
-/// buscador y la lista agrupada por zona.
 Future<int?> mostrarSelectorPunto(
   BuildContext context, {
   required EstadoApp estado,
@@ -46,7 +41,6 @@ class _HojaSelectorState extends State<_HojaSelector> {
     super.dispose();
   }
 
-  /// Normaliza para que "plantacion" encuentre "Plantación".
   static String _normalizar(String s) {
     const acentos = {
       'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n',
@@ -71,7 +65,6 @@ class _HojaSelectorState extends State<_HojaSelector> {
             return texto.contains(termino);
           }).toList();
 
-    // Agrupadas por zona, conservando el orden de puntosDisponibles.
     final porZona = <String, List<PuntoMuestreo>>{};
     for (final p in visibles) {
       (porZona[estado.nombreZonaDe(p)] ??= []).add(p);

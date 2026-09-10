@@ -157,6 +157,144 @@ class MockApi {
     });
   }
 
+  Future<RespuestaHttp> guardarUsuario(
+    String? autorizacion,
+    Map<String, dynamic> usuario, {
+    String? clave,
+  }) async {
+    await _latencia(Config.latenciaBaseMs);
+    return _protegido(
+      autorizacion,
+      (reclamos) {
+        final correo =
+            (usuario['correo'] as String? ?? '').trim().toLowerCase();
+        final nombre = (usuario['nombre'] as String? ?? '').trim();
+
+        if (nombre.isEmpty || !correo.contains('@')) {
+          return const RespuestaHttp(422, {
+            'mensaje': 'Nombre y correo son obligatorios.',
+          });
+        }
+
+        final id = usuario['id'] as int? ?? 0;
+        final esNuevo = id == 0;
+
+        if (esNuevo && (clave == null || clave.length < 8)) {
+          return const RespuestaHttp(422, {
+            'mensaje': 'La contrasena debe tener al menos 8 caracteres.',
+          });
+        }
+
+        for (final c in _cuentas) {
+          if (c.correo == correo && c.id != id) {
+            return const RespuestaHttp(409, {
+              'mensaje': 'Ya existe una cuenta con ese correo.',
+            });
+          }
+        }
+
+        final asignado = esNuevo ? _siguienteCuentaId() : id;
+        final anterior = _cuentaPorId(id);
+
+        final cuenta = CuentaAlmacenada(
+          id: asignado,
+          organizacionId: usuario['organizacion_id'] as int? ?? 1,
+          nombre: nombre,
+          correo: correo,
+          claveHash: (clave == null || clave.isEmpty)
+              ? anterior!.claveHash
+              : Pbkdf2.hashear(clave),
+          rol: usuario['rol'] as String? ?? 'operario',
+          activo: usuario['activo'] as bool? ?? true,
+        );
+
+        _cuentas.removeWhere((c) => c.id == asignado);
+        _cuentas.add(cuenta);
+
+        return RespuestaHttp(esNuevo ? 201 : 200, {
+          'id': cuenta.id,
+          'nombre': cuenta.nombre,
+          'correo': cuenta.correo,
+          'rol': cuenta.rol,
+          'activo': cuenta.activo,
+          'organizacion_id': cuenta.organizacionId,
+        });
+      },
+      rolesPermitidos: _rolesAdministracion,
+    );
+  }
+
+  Future<RespuestaHttp> eliminarUsuario(
+    String? autorizacion,
+    int usuarioId,
+  ) async {
+    await _latencia((Config.latenciaBaseMs * 0.7).round());
+    return _protegido(
+      autorizacion,
+      (reclamos) {
+        if (reclamos['sub'] == usuarioId) {
+          return const RespuestaHttp(409, {
+            'mensaje': 'No puede eliminar su propia cuenta.',
+          });
+        }
+        _cuentas.removeWhere((c) => c.id == usuarioId);
+        return const RespuestaHttp(204, {});
+      },
+      rolesPermitidos: _rolesAdministracion,
+    );
+  }
+
+  CuentaAlmacenada? _cuentaPorId(int id) {
+    for (final c in _cuentas) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  int _siguienteCuentaId() {
+    var mayor = 0;
+    for (final c in _cuentas) {
+      if (c.id > mayor) mayor = c.id;
+    }
+    return mayor + 1;
+  }
+
+  Future<RespuestaHttp> guardarDispositivo(
+    String? autorizacion,
+    Map<String, dynamic> dispositivo,
+  ) async {
+    await _latencia((Config.latenciaBaseMs * 0.7).round());
+    return _protegido(
+      autorizacion,
+      (reclamos) {
+        final identificador =
+            (dispositivo['identificador'] as String? ?? '').trim();
+        if (identificador.isEmpty) {
+          return const RespuestaHttp(422, {
+            'mensaje': 'El codigo del equipo es obligatorio.',
+          });
+        }
+        return RespuestaHttp(200, {
+          ...dispositivo,
+          'identificador': identificador,
+        });
+      },
+      rolesPermitidos: _rolesAdministracion,
+    );
+  }
+
+  Future<RespuestaHttp> eliminarDispositivo(
+    String? autorizacion,
+    int dispositivoId,
+  ) async {
+    await _latencia((Config.latenciaBaseMs * 0.7).round());
+    return _protegido(
+      autorizacion,
+      (reclamos) => const RespuestaHttp(204, {}),
+      rolesPermitidos: _rolesAdministracion,
+    );
+  }
+
   Future<RespuestaHttp> guardarZona(
     String? autorizacion,
     Map<String, dynamic> zona,

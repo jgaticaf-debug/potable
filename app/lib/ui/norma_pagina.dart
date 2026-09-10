@@ -12,9 +12,12 @@ class NormaPagina extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
-      children: [
+    return Refrescable(
+      estado: estado,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+        children: [
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -85,7 +88,8 @@ class NormaPagina extends StatelessWidget {
             ],
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }

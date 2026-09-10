@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../dominio/modelos.dart';
@@ -22,6 +24,9 @@ class EstadoApp extends ChangeNotifier {
   List<Parametro> _parametros = const [];
   List<Parametro> get parametros => _parametros;
 
+  List<Usuario> _usuarios = const [];
+  List<Usuario> get usuarios => _usuarios;
+
   List<Zona> _zonas = const [];
   List<Zona> get zonas => _zonas;
 
@@ -45,14 +50,66 @@ class EstadoApp extends ChangeNotifier {
   bool _sincronizando = false;
   bool get sincronizando => _sincronizando;
 
+  bool _sinConexion = false;
+
+  bool get sinConexion => _sinConexion;
+
   String? _errorSincronizacion;
   String? get errorSincronizacion => _errorSincronizacion;
+
+  Timer? _reintento;
+  int _intentosFallidos = 0;
+
+  // 30 s, 1, 2, 4, 8 y hasta 15 min. Insistir cada rato con la red
+  // caida solo gasta bateria y datos del operario.
+  Duration get _esperaDeReintento {
+    final minutos = [0.5, 1.0, 2.0, 4.0, 8.0, 15.0];
+    final i = _intentosFallidos.clamp(1, minutos.length) - 1;
+    return Duration(seconds: (minutos[i] * 60).round());
+  }
+
+  DateTime? _proximoReintento;
+
+  DateTime? get proximoReintento => _proximoReintento;
+
+  void _programarReintento() {
+    _reintento?.cancel();
+    if (pendientes.isEmpty) {
+      _proximoReintento = null;
+      _intentosFallidos = 0;
+      return;
+    }
+
+    final espera = _esperaDeReintento;
+    _proximoReintento = DateTime.now().add(espera);
+    _reintento = Timer(espera, () {
+      if (autenticado && pendientes.isNotEmpty) sincronizar(automatico: true);
+    });
+  }
+
+  void _cancelarReintento() {
+    _reintento?.cancel();
+    _reintento = null;
+    _proximoReintento = null;
+    _intentosFallidos = 0;
+  }
+
+  @override
+  void dispose() {
+    _reintento?.cancel();
+    super.dispose();
+  }
 
   MotorEvaluacion get motor => MotorEvaluacion(_parametros);
 
   Future<String?> iniciarSesion(String correo, String clave) async {
     try {
       _usuario = await _repositorio.autenticar(correo, clave);
+      _sinConexion = false;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
     } on ErrorApi catch (e) {
       return e.mensaje;
     }
@@ -61,7 +118,28 @@ class EstadoApp extends ChangeNotifier {
     return null;
   }
 
+  bool _restaurando = true;
+
+  bool get restaurando => _restaurando;
+
+  Future<void> restaurarSesion() async {
+    try {
+      final usuario = await _repositorio.restaurarSesion();
+      if (usuario == null) return;
+      _usuario = usuario;
+      _restaurando = false;
+      notifyListeners();
+      await cargarCatalogo();
+    } finally {
+      if (_restaurando) {
+        _restaurando = false;
+        notifyListeners();
+      }
+    }
+  }
+
   Future<void> cerrarSesion() async {
+    _cancelarReintento();
     await _repositorio.cerrarSesion();
     _usuario = null;
     _muestras = const [];
@@ -91,13 +169,28 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> cargarCatalogo() async {
+  Future<void> cargarCatalogo({bool descargar = true}) async {
     _cargando = true;
     notifyListeners();
     try {
+      if (descargar) {
+        try {
+          await _repositorio.descargarCatalogo();
+          _sinConexion = false;
+        } on SinConexion {
+          _sinConexion = true;
+        } on SesionExpirada catch (e) {
+          _forzarCierrePorSesion(e.mensaje);
+          return;
+        } on ErrorApi {
+          _sinConexion = false;
+        }
+      }
+
       final resultados = await Future.wait([
         _repositorio.organizacion(),
         _repositorio.parametros(),
+        _repositorio.usuarios(),
         _repositorio.zonas(),
         _repositorio.puntos(),
         _repositorio.dispositivos(),
@@ -106,15 +199,31 @@ class EstadoApp extends ChangeNotifier {
       ]);
       _organizacion = resultados[0] as Organizacion;
       _parametros = resultados[1] as List<Parametro>;
-      _zonas = resultados[2] as List<Zona>;
-      _puntos = resultados[3] as List<PuntoMuestreo>;
-      _dispositivos = resultados[4] as List<Dispositivo>;
-      _muestras = resultados[5] as List<Muestra>;
-      _alertas = resultados[6] as List<Alerta>;
+      _usuarios = resultados[2] as List<Usuario>;
+      _zonas = resultados[3] as List<Zona>;
+      _puntos = resultados[4] as List<PuntoMuestreo>;
+      _dispositivos = resultados[5] as List<Dispositivo>;
+      _muestras = resultados[6] as List<Muestra>;
+      _alertas = resultados[7] as List<Alerta>;
     } finally {
       _cargando = false;
       notifyListeners();
     }
+  }
+
+  DateTime? _ultimoRefresco;
+
+  Future<void> refrescar({bool forzar = true}) async {
+    if (!forzar &&
+        _ultimoRefresco != null &&
+        DateTime.now().difference(_ultimoRefresco!) <
+            const Duration(seconds: 30)) {
+      return;
+    }
+    if (!autenticado) return;
+
+    await cargarCatalogo();
+    _ultimoRefresco = DateTime.now();
   }
 
   Future<Muestra> registrarMuestra({
@@ -131,6 +240,7 @@ class EstadoApp extends ChangeNotifier {
       puntoId: puntoId,
       usuarioId: _usuario!.id,
       fechaHora: DateTime.now(),
+      creadoEn: DateTime.now(),
       latitudCaptura: punto.latitud,
       longitudCaptura: punto.longitud,
       clasificacionGlobal: evaluacion.clasificacion,
@@ -143,6 +253,9 @@ class EstadoApp extends ChangeNotifier {
     _muestras = await _repositorio.muestras();
     _alertas = await _repositorio.alertas();
     notifyListeners();
+
+    _intentosFallidos = 0;
+    _programarReintento();
     return guardada;
   }
 
@@ -152,19 +265,37 @@ class EstadoApp extends ChangeNotifier {
   List<Muestra> get pendientes =>
       _muestras.where((m) => !m.sincronizada).toList();
 
-  Future<int?> sincronizar() async {
-    _sincronizando = true;
+  Future<int?> sincronizar({bool automatico = false}) async {
+    if (_sincronizando) return null;
+
+    _sincronizando = !automatico;
     _errorSincronizacion = null;
     notifyListeners();
     try {
       final enviadas = await _repositorio.sincronizar();
+      _sinConexion = false;
+      _cancelarReintento();
+
+      try {
+        await _repositorio.descargarCatalogo();
+      } on SinConexion {
+        _sinConexion = true;
+      }
+
       _muestras = await _repositorio.muestras();
+      _zonas = await _repositorio.zonas();
+      _puntos = await _repositorio.puntos();
+      _dispositivos = await _repositorio.dispositivos();
+      _usuarios = await _repositorio.usuarios();
       return enviadas;
     } on SesionExpirada catch (e) {
       _forzarCierrePorSesion(e.mensaje);
       return null;
     } on ErrorSincronizacion catch (e) {
       _errorSincronizacion = e.mensaje;
+      _sinConexion = true;
+      _intentosFallidos++;
+      _programarReintento();
       return null;
     } finally {
       _sincronizando = false;
@@ -201,10 +332,88 @@ class EstadoApp extends ChangeNotifier {
   }
 
   Usuario? usuarioPorId(int id) {
+    for (final u in _usuarios) {
+      if (u.id == id) return u;
+    }
     for (final u in Semilla.usuarios) {
       if (u.id == id) return u;
     }
     return null;
+  }
+
+  Future<String?> guardarDispositivo(Dispositivo dispositivo) async {
+    try {
+      await _repositorio.guardarDispositivo(dispositivo);
+      _dispositivos = await _repositorio.dispositivos();
+      notifyListeners();
+      return null;
+    } on SesionExpirada catch (e) {
+      _forzarCierrePorSesion(e.mensaje);
+      return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
+    } on ErrorApi catch (e) {
+      return e.mensaje;
+    }
+  }
+
+  Future<String?> eliminarDispositivo(int dispositivoId) async {
+    try {
+      await _repositorio.eliminarDispositivo(dispositivoId);
+      _dispositivos = await _repositorio.dispositivos();
+      notifyListeners();
+      return null;
+    } on SesionExpirada catch (e) {
+      _forzarCierrePorSesion(e.mensaje);
+      return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
+    } on ErrorApi catch (e) {
+      return e.mensaje;
+    }
+  }
+
+  Future<String?> guardarUsuario(Usuario usuario, {String? clave}) async {
+    try {
+      await _repositorio.guardarUsuario(usuario, clave: clave);
+      _usuarios = await _repositorio.usuarios();
+      notifyListeners();
+      return null;
+    } on SesionExpirada catch (e) {
+      _forzarCierrePorSesion(e.mensaje);
+      return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
+    } on ErrorApi catch (e) {
+      return e.mensaje;
+    }
+  }
+
+  Future<String?> eliminarUsuario(int usuarioId) async {
+    if (usuarioId == _usuario?.id) {
+      return 'No puede eliminar su propia cuenta.';
+    }
+    try {
+      await _repositorio.eliminarUsuario(usuarioId);
+      _usuarios = await _repositorio.usuarios();
+      notifyListeners();
+      return null;
+    } on SesionExpirada catch (e) {
+      _forzarCierrePorSesion(e.mensaje);
+      return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
+    } on ErrorApi catch (e) {
+      return e.mensaje;
+    }
   }
 
   List<Dispositivo> dispositivosDe(int puntoId) =>
@@ -260,6 +469,10 @@ class EstadoApp extends ChangeNotifier {
     } on SesionExpirada catch (e) {
       _forzarCierrePorSesion(e.mensaje);
       return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
     } on ErrorApi catch (e) {
       return e.mensaje;
     }
@@ -277,6 +490,10 @@ class EstadoApp extends ChangeNotifier {
     } on SesionExpirada catch (e) {
       _forzarCierrePorSesion(e.mensaje);
       return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
+      return e.mensaje;
     } on ErrorApi catch (e) {
       return e.mensaje;
     }
@@ -290,6 +507,10 @@ class EstadoApp extends ChangeNotifier {
       return null;
     } on SesionExpirada catch (e) {
       _forzarCierrePorSesion(e.mensaje);
+      return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
       return e.mensaje;
     } on ErrorApi catch (e) {
       return e.mensaje;
@@ -308,6 +529,10 @@ class EstadoApp extends ChangeNotifier {
       return null;
     } on SesionExpirada catch (e) {
       _forzarCierrePorSesion(e.mensaje);
+      return e.mensaje;
+    } on SinConexion catch (e) {
+      _sinConexion = true;
+      notifyListeners();
       return e.mensaje;
     } on ErrorApi catch (e) {
       return e.mensaje;

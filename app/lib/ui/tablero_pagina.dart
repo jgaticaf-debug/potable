@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsivo.dart';
+
 import '../core/formato.dart';
 import '../core/tema.dart';
 import '../datos/estado_app.dart';
@@ -30,14 +32,9 @@ class TableroPagina extends StatelessWidget {
           _Encabezado(estado: estado),
           const SizedBox(height: 16),
 
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.42,
-            children: [
+          LayoutBuilder(
+            builder: (context, limites) {
+              final indicadores = <Widget>[
               TarjetaIndicador(
                 titulo: 'Muestras conformes',
                 valor: Formato.porcentaje(estado.conformidadGlobal),
@@ -72,7 +69,23 @@ class TableroPagina extends StatelessWidget {
                     ? 'Todo enviado al servidor'
                     : 'Muestras en el dispositivo',
               ),
-            ],
+              ];
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: indicadores.length,
+                gridDelegate:
+                    SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: Responsivo.columnas(limites.maxWidth),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  mainAxisExtent:
+                      MediaQuery.textScalerOf(context).scale(Responsivo.altoTarjeta),
+                ),
+                itemBuilder: (context, i) => indicadores[i],
+              );
+            },
           ),
           const SizedBox(height: 22),
 

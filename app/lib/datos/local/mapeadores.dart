@@ -137,7 +137,7 @@ class Mapeadores {
         puntoId: f['punto_id']! as int,
         usuarioId: f['usuario_id']! as int,
         fechaHora: _fecha(f['fecha_hora']),
-        creadoEn: _fechaOpcional(f['creado_en']),
+        creadoEn: _fechaOpcional(f['creado_en']) ?? _fecha(f['fecha_hora']),
         latitudCaptura: _real(f['latitud_captura']),
         longitudCaptura: _real(f['longitud_captura']),
         clasificacionGlobal: _porNombre(

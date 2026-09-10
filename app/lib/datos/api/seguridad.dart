@@ -54,6 +54,8 @@ class Pbkdf2 {
   static bool verificar(String clave, String almacenado) {
     final partes = almacenado.split('\$');
     if (partes.length != 4 || partes[0] != 'pbkdf2_sha256') return false;
+    // Las iteraciones vienen dentro del hash, no de la config: si algun
+    // dia las subo, las cuentas viejas siguen entrando.
     final vueltas = int.tryParse(partes[1]);
     if (vueltas == null) return false;
     return _igualdadConstante(

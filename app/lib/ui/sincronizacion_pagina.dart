@@ -36,9 +36,12 @@ class SincronizacionPagina extends StatelessWidget {
     final pendientes = estado.pendientes;
     final alertas = estado.alertas.where((a) => !a.atendida).take(12).toList();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-      children: [
+    return Refrescable(
+      estado: estado,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+        children: [
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -100,6 +103,31 @@ class SincronizacionPagina extends StatelessWidget {
                               fontSize: 11.5,
                               color: Tema.rojo,
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (estado.proximoReintento != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Tema.azul.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.autorenew_rounded,
+                            size: 16, color: Tema.azul),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Se reintentara solo a las '
+                            '${Formato.hora(estado.proximoReintento!)}. '
+                            'No hace falta que espere aqui.',
+                            style: const TextStyle(fontSize: 11.5),
                           ),
                         ),
                       ],
@@ -194,7 +222,8 @@ class SincronizacionPagina extends StatelessWidget {
               ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -125,6 +125,7 @@ Muestra _muestra(Clasificacion c) => Muestra(
       puntoId: 1,
       usuarioId: 1,
       fechaHora: DateTime(2026, 8, 21),
+      creadoEn: DateTime(2026, 8, 21),
       latitudCaptura: 14.6,
       longitudCaptura: -90.5,
       clasificacionGlobal: c,

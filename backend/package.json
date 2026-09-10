@@ -1,0 +1,28 @@
+{
+  "name": "potable-api",
+  "version": "1.0.0",
+  "description": "API REST de Potable: monitoreo de calidad del agua potable segun COGUANOR NTG 29001",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "migrar": "node scripts/migrar.js",
+    "sembrar": "node scripts/sembrar.js",
+    "reiniciar": "node scripts/migrar.js --reiniciar && node scripts/sembrar.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:unidad": "node --test test/seguridad.test.js",
+    "test:rutas": "node --test test/rutas.test.js",
+    "prestart": "node scripts/migrar.js && node scripts/sembrar.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  }
+}

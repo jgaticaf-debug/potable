@@ -39,7 +39,7 @@ class _HistorialPaginaState extends State<HistorialPagina> {
           child: Column(
             children: [
               SizedBox(
-                height: 34,
+                height: MediaQuery.textScalerOf(context).scale(34),
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
@@ -59,7 +59,7 @@ class _HistorialPaginaState extends State<HistorialPagina> {
               ),
               const SizedBox(height: 8),
               SizedBox(
-                height: 34,
+                height: MediaQuery.textScalerOf(context).scale(34),
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
@@ -82,18 +82,29 @@ class _HistorialPaginaState extends State<HistorialPagina> {
           ),
         ),
         Expanded(
-          child: filtradas.isEmpty
-              ? const SinDatos(
-                  mensaje: 'Ninguna muestra coincide con el filtro aplicado.',
-                  icono: Icons.filter_alt_off_rounded,
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
-                  itemCount: filtradas.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) =>
-                      _Tarjeta(estado: estado, muestra: filtradas[i]),
-                ),
+          child: Refrescable(
+            estado: estado,
+            child: filtradas.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 60),
+                      SinDatos(
+                        mensaje:
+                            'Ninguna muestra coincide con el filtro aplicado.',
+                        icono: Icons.filter_alt_off_rounded,
+                      ),
+                    ],
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
+                    itemCount: filtradas.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, i) =>
+                        _Tarjeta(estado: estado, muestra: filtradas[i]),
+                  ),
+          ),
         ),
       ],
     );

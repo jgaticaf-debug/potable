@@ -67,6 +67,16 @@ class Config {
 
   static int get latenciaBaseMs => entero('LATENCIA_BASE_MS', 320);
 
+  // Sin valor en el .env decide la plataforma: BLE donde hay radio, simulado
+  // en escritorio y en pruebas. Poner false fuerza el simulado en el telefono,
+  // que es lo que uso cuando no tengo el equipo a la mano.
+  static bool? get usarSensorBle {
+    final valor = texto('USAR_SENSOR_BLE', '').toLowerCase();
+    if (valor == 'true' || valor == '1') return true;
+    if (valor == 'false' || valor == '0') return false;
+    return null;
+  }
+
   static int get sincronizacionFallasIniciales =>
       entero('SINCRONIZACION_FALLAS_INICIALES', 1);
 }
