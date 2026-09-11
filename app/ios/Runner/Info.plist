@@ -75,5 +75,7 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Potable se conecta al servidor de su organizacion dentro de la red local.</string>
 </dict>
 </plist>
