@@ -107,7 +107,7 @@ lib/generated_plugin_registrant.dart
 .history/
 .atom/
 .svn/
-
+.claude/
 # ----------------------------------------------------------
 # Sistema operativo
 # ----------------------------------------------------------
