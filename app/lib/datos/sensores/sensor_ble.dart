@@ -67,9 +67,10 @@ class SensorBle implements SensorCliente {
   }
 
   Future<void> _asegurarPermisos() async {
-    // Solo Android e iOS piden permiso en tiempo de ejecucion. En Windows,
-    // Linux y macOS no existen estos permisos y pedirlos da siempre denegado.
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    // Solo Android. En iOS y macOS el sistema pide el permiso solo al empezar
+    // a escanear, usando el texto del Info.plist; y pedir aqui la ubicacion
+    // sin declararla alla cierra la app de golpe. En escritorio no existen.
+    if (!Platform.isAndroid) return;
 
     // En Android 12 y arriba son estos dos; abajo, el escaneo BLE se pedia
     // como permiso de ubicacion. Pido los tres y me fijo en el resultado.
