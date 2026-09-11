@@ -170,6 +170,20 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
+  // El usuario de la sesion vive aparte de la lista, asi que al editar su
+  // propio nombre el tablero seguia mostrando el viejo hasta volver a entrar.
+  void _refrescarUsuarioDeSesion() {
+    final id = _usuario?.id;
+    if (id == null) return;
+
+    for (final u in _usuarios) {
+      if (u.id == id) {
+        _usuario = u;
+        return;
+      }
+    }
+  }
+
   Future<void> cargarCatalogo({bool descargar = true}) async {
     _cargando = true;
     notifyListeners();
@@ -206,6 +220,7 @@ class EstadoApp extends ChangeNotifier {
       _dispositivos = resultados[5] as List<Dispositivo>;
       _muestras = resultados[6] as List<Muestra>;
       _alertas = resultados[7] as List<Alerta>;
+      _refrescarUsuarioDeSesion();
     } finally {
       _cargando = false;
       notifyListeners();
@@ -321,6 +336,23 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Las atiendo una por una a proposito, aunque sea mas lento: asi cada una
+  // deja su propio registro en la bitacora y no se pierde quien atendio que.
+  // Devuelve cuantas alcanzo a marcar antes de fallar, si es que fallo.
+  Future<int> atenderAlertas(List<int> alertaIds) async {
+    var hechas = 0;
+    try {
+      for (final id in alertaIds) {
+        await _repositorio.marcarAlertaAtendida(id);
+        hechas++;
+      }
+    } finally {
+      _alertas = await _repositorio.alertas();
+      notifyListeners();
+    }
+    return hechas;
+  }
+
   PuntoMuestreo? puntoPorId(int id) {
     for (final p in _puntos) {
       if (p.id == id) return p;
@@ -385,6 +417,7 @@ class EstadoApp extends ChangeNotifier {
     try {
       await _repositorio.guardarUsuario(usuario, clave: clave);
       _usuarios = await _repositorio.usuarios();
+      _refrescarUsuarioDeSesion();
       notifyListeners();
       return null;
     } on SesionExpirada catch (e) {

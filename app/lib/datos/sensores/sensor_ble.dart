@@ -9,12 +9,19 @@ import 'sensor_cliente.dart';
 
 class SensorBle implements SensorCliente {
   SensorBle({
-    this.esperaDeBusqueda = const Duration(seconds: 12),
+    this.esperaDeBusqueda = const Duration(seconds: 8),
     this.esperaDeLectura = const Duration(seconds: 15),
+    this.reposo = const Duration(milliseconds: 2500),
   });
 
+  // Tope duro del escaneo.
   final Duration esperaDeBusqueda;
   final Duration esperaDeLectura;
+
+  // Un ESP32 se anuncia cada pocas decenas de milisegundos, asi que si en
+  // este rato no aparecio nada nuevo, ya no va a aparecer. Corto ahi en vez
+  // de esperar el tope: la diferencia se siente al usarlo.
+  final Duration reposo;
 
   // Los mismos UUID que declara potable_sensor.ino. Si cambian alla, cambian
   // aca: no hay forma de descubrirlos solos.
@@ -112,16 +119,32 @@ class SensorBle implements SensorCliente {
   Future<List<_Hallazgo>> _escanear({String? hasta}) async {
     final porNombre = <String, _Hallazgo>{};
     final atajo = Completer<void>();
+    Timer? silencio;
+
+    void cortarSiSeCalma() {
+      silencio?.cancel();
+      silencio = Timer(reposo, () {
+        if (!atajo.isCompleted) atajo.complete();
+      });
+    }
 
     final suscripcion = FlutterBluePlus.scanResults.listen((resultados) {
+      var apareceAlgoNuevo = false;
+
       for (final r in resultados) {
         final nombre = r.advertisementData.advName;
         if (nombre.isEmpty) continue;
 
+        apareceAlgoNuevo |= !porNombre.containsKey(nombre);
         porNombre[nombre] = _Hallazgo(nombre, r.rssi, r.device);
 
-        if (nombre == hasta && !atajo.isCompleted) atajo.complete();
+        if (nombre == hasta && !atajo.isCompleted) {
+          atajo.complete();
+          return;
+        }
       }
+
+      if (apareceAlgoNuevo) cortarSiSeCalma();
     });
 
     try {
@@ -139,6 +162,7 @@ class SensorBle implements SensorCliente {
     } on TimeoutException {
       // Me quedo con lo que alcance a ver.
     } finally {
+      silencio?.cancel();
       await suscripcion.cancel();
       if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
     }
