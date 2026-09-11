@@ -25,6 +25,9 @@ class DetalleMuestraPagina extends StatelessWidget {
     final punto = estado.puntoPorId(muestra.puntoId);
     final usuario = estado.usuarioPorId(muestra.usuarioId);
     final color = Tema.color(muestra.clasificacionGlobal);
+    final faltantes = estado.motor.criticosFaltantes(
+      muestra.mediciones.map((m) => m.parametroId),
+    );
     final limitante = muestra.parametroLimitanteId == null
         ? null
         : estado.parametroPorId(muestra.parametroLimitanteId!);
@@ -85,13 +88,52 @@ class DetalleMuestraPagina extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   limitante == null
-                      ? 'Todos los parametros dentro de la norma COGUANOR '
-                          'NTG 29001.'
+                      ? faltantes.isEmpty
+                          ? 'Todos los parametros dentro de la norma COGUANOR '
+                              'NTG 29001.'
+                          : 'Dentro de norma en los parametros medidos.'
                       : 'Determinado por ${limitante.nombre}: norma '
                           '${limitante.rangoLegible}.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 12.5, color: Colors.black87),
                 ),
+                if (faltantes.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0x14D98A0B),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'EVALUACION PARCIAL - '
+                          '${muestra.mediciones.length} de '
+                          '${estado.motor.totalParametros} parametros',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFB8770A),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Falta ${faltantes.map((p) => p.nombre).join(', ')}, '
+                          'que la norma trata como critico. No se puede '
+                          'declarar apta hasta tener ese resultado.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            height: 1.35,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

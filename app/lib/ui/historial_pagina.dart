@@ -141,6 +141,9 @@ class _Tarjeta extends StatelessWidget {
         ? null
         : estado.parametroPorId(muestra.parametroLimitanteId!);
     final color = Tema.color(muestra.clasificacionGlobal);
+    final parcial = estado.motor
+        .criticosFaltantes(muestra.mediciones.map((m) => m.parametroId))
+        .isNotEmpty;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -181,10 +184,12 @@ class _Tarjeta extends StatelessWidget {
                       const SizedBox(height: 5),
                       Text(
                         '#${muestra.id}  -  '
-                        '${Formato.fechaHora(muestra.fechaHora)}',
-                        style: const TextStyle(
+                        '${Formato.fechaHora(muestra.fechaHora)}'
+                        '${parcial ? '  -  parcial' : ''}',
+                        style: TextStyle(
                           fontSize: 11.5,
-                          color: Colors.black54,
+                          color: parcial ? Tema.ambar : Colors.black54,
+                          fontWeight: parcial ? FontWeight.w600 : null,
                         ),
                       ),
                       if (limitante != null) ...[

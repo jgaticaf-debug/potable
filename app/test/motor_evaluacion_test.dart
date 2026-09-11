@@ -118,6 +118,64 @@ void main() {
       expect(MotorEvaluacion.porcentajeConformidad([]), 0);
     });
   });
+
+  group('criticosFaltantes', () {
+    test('con todos los parametros medidos no falta nada', () {
+      final todos = Semilla.parametros.map((p) => p.id);
+      expect(motor.criticosFaltantes(todos), isEmpty);
+    });
+
+    test('detecta el critico de laboratorio que falta en campo', () {
+      // El caso real: coliformes necesita incubacion, en campo no se mide.
+      final enCampo = Semilla.parametros
+          .where((p) => p.id != coliformes.id)
+          .map((p) => p.id);
+
+      final faltantes = motor.criticosFaltantes(enCampo);
+
+      expect(faltantes, hasLength(1));
+      expect(faltantes.single.nombre, 'Coliformes totales');
+    });
+
+    test('un parametro no critico ausente no cuenta', () {
+      final nitratos = porNombre('Nitratos');
+      expect(nitratos.critico, isFalse);
+
+      final sinNitratos = Semilla.parametros
+          .where((p) => p.id != nitratos.id)
+          .map((p) => p.id);
+
+      expect(motor.criticosFaltantes(sinNitratos), isEmpty);
+    });
+
+    test('sin ninguna medicion faltan todos los criticos', () {
+      final criticos =
+          Semilla.parametros.where((p) => p.critico).map((p) => p.nombre);
+
+      expect(
+        motor.criticosFaltantes(const <int>[]).map((p) => p.nombre),
+        unorderedEquals(criticos),
+      );
+    });
+
+    test('una muestra sin el critico no deberia presumir de apta', () {
+      // El motor sigue evaluando lo que recibe; lo que cambia es que ahora
+      // se puede saber que el veredicto salio incompleto.
+      final valores = {ph.id: 7.2, turbidez.id: 0.5, cloro.id: 0.6};
+      final resultado = motor.evaluarMuestra(valores);
+
+      expect(resultado.clasificacion, Clasificacion.apto);
+      expect(
+        motor.criticosFaltantes(valores.keys),
+        isNotEmpty,
+        reason: 'la interfaz tiene que marcarla como evaluacion parcial',
+      );
+    });
+
+    test('totalParametros refleja el catalogo', () {
+      expect(motor.totalParametros, Semilla.parametros.length);
+    });
+  });
 }
 
 Muestra _muestra(Clasificacion c) => Muestra(

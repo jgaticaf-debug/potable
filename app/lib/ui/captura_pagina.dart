@@ -103,6 +103,38 @@ class _CapturaPaginaState extends State<CapturaPagina> {
     }
   }
 
+  // Coliformes necesita laboratorio, asi que en campo va a faltar casi
+  // siempre. No lo bloqueo, pero que quede claro que el veredicto sale sin el.
+  Future<bool> _confirmarSiFaltanCriticos() async {
+    final faltantes = estado.motor.criticosFaltantes(_valores.keys);
+    if (faltantes.isEmpty) return true;
+
+    final nombres = faltantes.map((p) => p.nombre).join(', ');
+    final respuesta = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('Faltan parametros criticos'),
+        content: Text(
+          'No registro: $nombres.\n\n'
+          'La muestra se va a guardar como evaluacion parcial: el resultado '
+          'sale de los parametros que si midio, y no se puede declarar apta '
+          'mientras falte un critico.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            child: const Text('Guardar parcial'),
+          ),
+        ],
+      ),
+    );
+    return respuesta == true;
+  }
+
   Future<void> _guardar() async {
     final punto = _punto;
     if (punto == null) {
@@ -113,6 +145,8 @@ class _CapturaPaginaState extends State<CapturaPagina> {
       _aviso('Registre al menos un parametro.', Tema.ambar);
       return;
     }
+
+    if (!await _confirmarSiFaltanCriticos()) return;
 
     setState(() => _guardando = true);
     final muestra = await estado.registrarMuestra(

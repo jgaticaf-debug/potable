@@ -105,6 +105,19 @@ class MotorEvaluacion {
     );
   }
 
+  // Los criticos que no se midieron. Coliformes es el caso tipico: necesita
+  // incubacion de laboratorio, asi que en campo la muestra sale sin el. Sin
+  // esto la app diria "apto" sin haber mirado el parametro que mas pesa.
+  List<Parametro> criticosFaltantes(Iterable<int> medidos) {
+    final presentes = medidos.toSet();
+    return [
+      for (final p in parametros)
+        if (p.critico && !presentes.contains(p.id)) p,
+    ];
+  }
+
+  int get totalParametros => parametros.length;
+
   static double porcentajeConformidad(List<Muestra> muestras) {
     if (muestras.isEmpty) return 0;
     final conformes = muestras
