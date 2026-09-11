@@ -377,6 +377,29 @@ class _SeccionAlertasState extends State<_SeccionAlertas> {
               ],
             ),
           ),
+          // Va arriba a proposito: con muchas alertas, abajo del listado
+          // habria que bajar un buen rato para alcanzarlo.
+          if (visibles.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _atendiendo ? null : _atenderVisibles,
+                icon: _atendiendo
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.done_all_rounded, size: 19),
+                label: Text(
+                  _atendiendo
+                      ? 'Marcando...'
+                      : _filtro == null
+                          ? 'Marcar las ${visibles.length} como atendidas'
+                          : 'Marcar estas ${visibles.length} como atendidas',
+                ),
+              ),
+            ),
           const SizedBox(height: 4),
         ],
 
@@ -397,33 +420,17 @@ class _SeccionAlertasState extends State<_SeccionAlertas> {
                   _FilaAlerta(estado: estado, alerta: a),
                 if (visibles.length > mostradas.length)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
                     child: Text(
-                      'y ${visibles.length - mostradas.length} mas...',
+                      'y ${visibles.length - mostradas.length} mas sin '
+                      'mostrar. El boton de arriba las incluye todas.',
                       style: const TextStyle(
                         fontSize: 11.5,
+                        height: 1.35,
                         color: Colors.black45,
                       ),
                     ),
                   ),
-                const Divider(height: 1),
-                TextButton.icon(
-                  onPressed: _atendiendo ? null : _atenderVisibles,
-                  icon: _atendiendo
-                      ? const SizedBox(
-                          width: 15,
-                          height: 15,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.done_all_rounded, size: 19),
-                  label: Text(
-                    _atendiendo
-                        ? 'Marcando...'
-                        : _filtro == null
-                            ? 'Marcar las ${visibles.length} como atendidas'
-                            : 'Marcar estas ${visibles.length} como atendidas',
-                  ),
-                ),
               ],
             ),
           ),
