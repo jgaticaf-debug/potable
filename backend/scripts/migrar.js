@@ -116,6 +116,27 @@ async function principal() {
 }
 
 principal().catch((error) => {
-  console.error('[migrar] fallo:', error.message);
+  // AggregateError deja message vacio y esconde las causas reales adentro.
+  // Sale cuando falla la conexion por IPv6 y por IPv4 a la vez, que es
+  // justo lo que pasa si se apunta a una base que no existe.
+  const causas = error?.errors ?? [];
+  const detalle = error?.message || causas.map((e) => e.message).join(' / ');
+
+  console.error('[migrar] fallo:', detalle || error);
+  console.error(
+    '[migrar] destino:',
+    config.gestionada
+      ? 'DATABASE_URL'
+      : `${config.bd.host}:${config.bd.port}/${config.bd.database}`,
+  );
+
+  if (!config.gestionada && config.esProduccion) {
+    console.error(
+      '[migrar] No hay DATABASE_URL y se esta usando la configuracion local. ' +
+        'En un servicio administrado eso nunca va a conectar: revise que la ' +
+        'variable este enlazada al servicio de base de datos.',
+    );
+  }
+
   process.exitCode = 1;
 });
