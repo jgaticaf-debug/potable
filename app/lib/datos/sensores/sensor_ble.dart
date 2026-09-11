@@ -29,11 +29,12 @@ class SensorBle implements SensorCliente {
     await _asegurarRadio();
     await _asegurarPermisos();
 
-    final dispositivo = await _buscar(identificador);
+    final hallado = await _buscar(identificador);
+    final dispositivo = hallado.dispositivo;
 
     try {
       await dispositivo.connect(license: License.nonprofit);
-      return await _pedirLectura(dispositivo, identificador);
+      return await _pedirLectura(dispositivo, hallado.nombre);
     } on FlutterBluePlusException catch (e) {
       throw SensorNoDisponible(
         'Fallo la comunicacion con $identificador: ${e.description ?? e.code}',
@@ -94,16 +95,32 @@ class SensorBle implements SensorCliente {
     );
   }
 
-  Future<BluetoothDevice> _buscar(String identificador) async {
-    final encontrado = Completer<BluetoothDevice>();
+  @override
+  Future<List<EquipoCercano>> buscarCercanos() async {
+    await _asegurarRadio();
+    await _asegurarPermisos();
+
+    final hallados = await _escanear();
+    return [
+      for (final h in hallados)
+        EquipoCercano(identificador: h.nombre, intensidad: h.intensidad),
+    ];
+  }
+
+  // Filtro por UUID de servicio, no por nombre: asi solo veo equipos de
+  // Potable y no toda la cafetera bluetooth del vecindario.
+  Future<List<_Hallazgo>> _escanear({String? hasta}) async {
+    final porNombre = <String, _Hallazgo>{};
+    final atajo = Completer<void>();
 
     final suscripcion = FlutterBluePlus.scanResults.listen((resultados) {
       for (final r in resultados) {
         final nombre = r.advertisementData.advName;
-        if (nombre == identificador && !encontrado.isCompleted) {
-          encontrado.complete(r.device);
-          return;
-        }
+        if (nombre.isEmpty) continue;
+
+        porNombre[nombre] = _Hallazgo(nombre, r.rssi, r.device);
+
+        if (nombre == hasta && !atajo.isCompleted) atajo.complete();
       }
     });
 
@@ -112,16 +129,49 @@ class SensorBle implements SensorCliente {
         withServices: [servicio],
         timeout: esperaDeBusqueda,
       );
-      return await encontrado.future.timeout(esperaDeBusqueda);
+
+      // Si ya aparecio el que buscaba no espero el resto del tiempo; si no,
+      // dejo que el escaneo se agote para juntar todo lo que haya.
+      await Future.any([
+        atajo.future,
+        FlutterBluePlus.isScanning.where((corriendo) => !corriendo).first,
+      ]).timeout(esperaDeBusqueda + const Duration(seconds: 3));
     } on TimeoutException {
-      throw SensorNoDisponible(
-        'No encontre el equipo $identificador. Verifique que este encendido y '
-        'a menos de diez metros.',
-      );
+      // Me quedo con lo que alcance a ver.
     } finally {
       await suscripcion.cancel();
-      await FlutterBluePlus.stopScan();
+      if (FlutterBluePlus.isScanningNow) await FlutterBluePlus.stopScan();
     }
+
+    return porNombre.values.toList()
+      ..sort((a, b) => b.intensidad.compareTo(a.intensidad));
+  }
+
+  Future<_Hallazgo> _buscar(String identificador) async {
+    final hallados = await _escanear(hasta: identificador);
+
+    for (final h in hallados) {
+      if (h.nombre == identificador) return h;
+    }
+
+    if (hallados.isEmpty) {
+      throw SensorNoDisponible(
+        'No encontre ningun equipo de Potable cerca. Verifique que el '
+        '$identificador este encendido y a menos de diez metros.',
+      );
+    }
+
+    // El punto tiene registrado un equipo que no esta aqui, pero si hay otro
+    // de Potable. Con un solo aparato portatil eso pasa todo el tiempo, asi
+    // que lo uso y dejo dicho cual fue. Si hay varios no adivino.
+    if (hallados.length == 1) return hallados.first;
+
+    final nombres = hallados.map((h) => h.nombre).join(', ');
+    throw SensorNoDisponible(
+      'El punto tiene registrado $identificador, que no esta cerca, y hay '
+      'varios equipos a la vista: $nombres. Acerquese al que va a usar o '
+      'registrelo en el punto.',
+    );
   }
 
   Future<LecturaSensor> _pedirLectura(
@@ -179,4 +229,12 @@ class SensorBle implements SensorCliente {
       );
     }
   }
+}
+
+class _Hallazgo {
+  const _Hallazgo(this.nombre, this.intensidad, this.dispositivo);
+
+  final String nombre;
+  final int intensidad;
+  final BluetoothDevice dispositivo;
 }

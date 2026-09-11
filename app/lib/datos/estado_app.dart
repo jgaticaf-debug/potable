@@ -7,6 +7,7 @@ import '../dominio/motor_evaluacion.dart';
 import 'api/cliente_api.dart';
 import 'repositorio.dart';
 import 'semilla.dart';
+import 'sensores/sensor_cliente.dart';
 
 class EstadoApp extends ChangeNotifier {
   EstadoApp(this._repositorio);
@@ -261,6 +262,9 @@ class EstadoApp extends ChangeNotifier {
 
   Future<Map<int, double>> leerSensores(int puntoId) =>
       _repositorio.leerSensores(puntoId);
+
+  Future<List<EquipoCercano>> buscarEquiposCercanos() =>
+      _repositorio.buscarEquiposCercanos();
 
   List<Muestra> get pendientes =>
       _muestras.where((m) => !m.sincronizada).toList();

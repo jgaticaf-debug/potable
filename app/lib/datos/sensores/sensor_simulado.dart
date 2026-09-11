@@ -33,6 +33,15 @@ class SensorSimulado implements SensorCliente {
   };
 
   @override
+  Future<List<EquipoCercano>> buscarCercanos() async {
+    await Future<void>.delayed(latencia);
+    return const [
+      EquipoCercano(identificador: 'ESP32-POZO1', intensidad: -52),
+      EquipoCercano(identificador: 'ESP32-TANQN', intensidad: -74),
+    ];
+  }
+
+  @override
   Future<LecturaSensor> leer(String identificador) async {
     await Future<void>.delayed(latencia);
 

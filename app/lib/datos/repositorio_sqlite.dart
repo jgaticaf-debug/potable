@@ -805,6 +805,10 @@ class RepositorioSqlite implements Repositorio {
   }
 
   @override
+  Future<List<EquipoCercano>> buscarEquiposCercanos() =>
+      _sensor.buscarCercanos();
+
+  @override
   Future<Map<int, double>> leerSensores(int puntoId) async {
     final filas = await _db.query(
       'puntos',
@@ -857,10 +861,17 @@ class RepositorioSqlite implements Repositorio {
       );
     }
 
+    // Anoto el equipo que de verdad contesto, no el que estaba registrado.
+    // Con un solo aparato portatil casi nunca son el mismo, y la bitacora
+    // tiene que decir la verdad.
+    final quienRespondio = lectura.equipo;
     await _auditar(
       AccionAuditoria.lecturaSensor,
       entidadId: puntoId,
-      detalle: '$equipo: ${valores.length} valor(es)',
+      detalle: quienRespondio == equipo
+          ? '$equipo: ${valores.length} valor(es)'
+          : '$quienRespondio (registrado $equipo): '
+              '${valores.length} valor(es)',
     );
     return valores;
   }

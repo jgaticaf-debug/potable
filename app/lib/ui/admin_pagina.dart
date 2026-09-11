@@ -231,6 +231,7 @@ class _AdminPaginaState extends State<AdminPagina> {
       context,
       puntoId: punto.id,
       dispositivo: equipo,
+      buscarCercanos: estado.buscarEquiposCercanos,
     );
     if (resultado == null) return;
 

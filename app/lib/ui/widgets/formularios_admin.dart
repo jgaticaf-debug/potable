@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/formato.dart';
 import '../../core/tema.dart';
+import '../../datos/sensores/sensor_cliente.dart';
 import '../../dominio/modelos.dart';
 
 Future<Zona?> mostrarFormularioZona(
@@ -67,6 +68,7 @@ Future<Dispositivo?> mostrarFormularioDispositivo(
   BuildContext context, {
   required int puntoId,
   Dispositivo? dispositivo,
+  Future<List<EquipoCercano>> Function()? buscarCercanos,
 }) {
   return showModalBottomSheet<Dispositivo>(
     context: context,
@@ -77,6 +79,7 @@ Future<Dispositivo?> mostrarFormularioDispositivo(
       child: _FormularioDispositivo(
         puntoId: puntoId,
         dispositivo: dispositivo,
+        buscarCercanos: buscarCercanos,
       ),
     ),
   );
@@ -557,7 +560,13 @@ class _FormularioUsuarioState extends State<_FormularioUsuario> {
 }
 
 class _FormularioDispositivo extends StatefulWidget {
-  const _FormularioDispositivo({required this.puntoId, this.dispositivo});
+  const _FormularioDispositivo({
+    required this.puntoId,
+    this.dispositivo,
+    this.buscarCercanos,
+  });
+
+  final Future<List<EquipoCercano>> Function()? buscarCercanos;
 
   final int puntoId;
   final Dispositivo? dispositivo;
@@ -608,6 +617,78 @@ class _FormularioDispositivoState extends State<_FormularioDispositivo> {
     );
   }
 
+  bool _buscando = false;
+
+  // Elegir de una lista de lo que de verdad se esta anunciando evita el error
+  // mas tonto y mas dificil de diagnosticar: escribir mal el nombre.
+  Future<void> _elegirCercano() async {
+    setState(() => _buscando = true);
+
+    List<EquipoCercano> equipos;
+    try {
+      equipos = await widget.buscarCercanos!();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _buscando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e'), backgroundColor: Tema.ambar),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _buscando = false);
+
+    if (equipos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No encontre ningun equipo de Potable cerca. Revise que este '
+            'encendido.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final elegido = await showModalBottomSheet<EquipoCercano>(
+      context: context,
+      builder: (contexto) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text(
+                'Equipos a la vista',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text('Toque el que va a instalar en este punto.'),
+            ),
+            const Divider(height: 1),
+            for (final e in equipos)
+              ListTile(
+                leading: Icon(
+                  Icons.memory_rounded,
+                  color: e.muyLejos ? Tema.ambar : Tema.cian,
+                ),
+                title: Text(e.identificador),
+                subtitle: Text(_distancia(e.intensidad)),
+                onTap: () => Navigator.pop(contexto, e),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (elegido != null) _identificador.text = elegido.identificador;
+  }
+
+  static String _distancia(int rssi) {
+    if (rssi >= -60) return 'Muy cerca';
+    if (rssi >= -80) return 'A media distancia';
+    return 'Lejos, acerquese para confirmar';
+  }
+
   @override
   Widget build(BuildContext context) {
     final dias = DateTime.now().difference(_calibracion).inDays;
@@ -633,6 +714,25 @@ class _FormularioDispositivoState extends State<_FormularioDispositivo> {
                 : null,
             autofocus: true,
           ),
+          if (widget.buscarCercanos != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _buscando ? null : _elegirCercano,
+                icon: _buscando
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.bluetooth_searching_rounded, size: 19),
+                label: Text(
+                  _buscando ? 'Buscando equipos...' : 'Buscar equipos cercanos',
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           TextFormField(
             controller: _tipoSensor,

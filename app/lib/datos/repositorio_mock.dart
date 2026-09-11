@@ -6,6 +6,7 @@ import 'api/cliente_api.dart';
 import 'api/mock_api.dart';
 import 'repositorio.dart';
 import 'semilla.dart';
+import 'sensores/sensor_cliente.dart';
 
 class RepositorioMock implements Repositorio {
   RepositorioMock({Cliente? cliente})
@@ -223,6 +224,15 @@ class RepositorioMock implements Repositorio {
     _alertas = [
       for (final a in _alertas)
         if (a.id == alertaId) a.copyCon(atendida: true) else a,
+    ];
+  }
+
+  @override
+  Future<List<EquipoCercano>> buscarEquiposCercanos() async {
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    return [
+      for (final d in _dispositivos)
+        EquipoCercano(identificador: d.identificador, intensidad: -55),
     ];
   }
 

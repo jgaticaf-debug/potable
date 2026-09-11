@@ -56,6 +56,20 @@ class LecturaSensor {
   }
 }
 
+class EquipoCercano {
+  const EquipoCercano({required this.identificador, required this.intensidad});
+
+  final String identificador;
+
+  // RSSI en dBm: siempre negativo, y mientras mas cerca de cero, mas cerca
+  // esta el aparato. Sirve para ordenar la lista por el que tengo a la mano.
+  final int intensidad;
+
+  bool get muyLejos => intensidad < -90;
+}
+
 abstract class SensorCliente {
   Future<LecturaSensor> leer(String identificador);
+
+  Future<List<EquipoCercano>> buscarCercanos();
 }

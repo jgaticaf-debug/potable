@@ -16,7 +16,8 @@
     "test": "node --test \"test/**/*.test.js\"",
     "test:unidad": "node --test test/seguridad.test.js",
     "test:rutas": "node --test test/rutas.test.js",
-    "prestart": "node scripts/migrar.js && node scripts/sembrar.js"
+    "prestart": "node scripts/migrar.js && node scripts/sembrar.js",
+    "reclave": "node scripts/reclave.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

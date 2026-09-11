@@ -1,4 +1,5 @@
 import '../dominio/modelos.dart';
+import 'sensores/sensor_cliente.dart';
 
 abstract class Repositorio {
   Future<Usuario> autenticar(String correo, String clave);
@@ -50,6 +51,8 @@ abstract class Repositorio {
   Future<void> marcarAlertaAtendida(int alertaId);
 
   Future<Map<int, double>> leerSensores(int puntoId);
+
+  Future<List<EquipoCercano>> buscarEquiposCercanos();
 
   Future<int> sincronizar();
 
