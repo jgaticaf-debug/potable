@@ -79,12 +79,18 @@ class MotorEvaluacion {
       );
     }
 
-    final global =
-        Clasificacion.peorDe(mediciones.map((m) => m.clasificacion));
+    // Los indicativos se miden y se guardan, pero no votan. La turbidez es el
+    // caso: el sensor tiene +-22 UNT de incertidumbre contra un limite de 5, o
+    // sea que su veredicto seria una moneda al aire. Dejarlo decidir ensuciaria
+    // la clasificacion de toda la muestra con ruido del instrumento.
+    final decisivas =
+        mediciones.where((m) => !(parametroPorId(m.parametroId)?.indicativo ?? false));
+
+    final global = Clasificacion.peorDe(decisivas.map((m) => m.clasificacion));
 
     Medicion? limitante;
     var mejorPeso = -1.0;
-    for (final m in mediciones) {
+    for (final m in decisivas) {
       if (m.clasificacion != global) continue;
       final p = parametroPorId(m.parametroId)!;
     // Si empatan, gana el critico (cloro, coliformes) y entre iguales

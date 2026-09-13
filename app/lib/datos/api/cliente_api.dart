@@ -52,6 +52,7 @@ class ClienteApi with SesionEnToken implements Cliente {
             'alerta_max': p.alertaMax,
             'critico': p.critico,
             'version_norma': p.versionNorma,
+            'nota_indicativa': p.notaIndicativa,
             'descripcion': p.descripcion,
           },
       ],

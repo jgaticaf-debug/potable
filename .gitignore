@@ -129,3 +129,7 @@ $RECYCLE.BIN/
 *.pyc
 __pycache__/
 node_modules/
+
+# Los respaldos completos del ESP32 son 4 MB y reproducibles:
+# el programa esta en el repo y la calibracion va aparte en nvs_*.bin
+firmware/respaldos/flash_completo_*.bin

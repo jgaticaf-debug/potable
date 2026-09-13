@@ -29,7 +29,8 @@ rutasCatalogo.get(
     res.json(
       await todas(
         `SELECT id, nombre, unidad, via_captura, limite_min, limite_max,
-                alerta_min, alerta_max, critico, version_norma, descripcion
+                alerta_min, alerta_max, critico, version_norma,
+                nota_indicativa, descripcion
          FROM parametros ORDER BY id`,
       ),
     );

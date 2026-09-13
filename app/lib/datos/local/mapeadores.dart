@@ -115,6 +115,7 @@ class Mapeadores {
         alertaMax: _real(f['alerta_max']),
         critico: _bool(f['critico']),
         versionNorma: f['version_norma']! as String,
+        notaIndicativa: f['nota_indicativa'] as String?,
         descripcion: f['descripcion'] as String? ?? '',
       );
 
@@ -129,6 +130,7 @@ class Mapeadores {
         'alerta_max': p.alertaMax,
         'critico': _int(p.critico),
         'version_norma': p.versionNorma,
+        'nota_indicativa': p.notaIndicativa,
         'descripcion': p.descripcion,
       };
 

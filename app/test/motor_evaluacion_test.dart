@@ -13,6 +13,7 @@ void main() {
   final turbidez = porNombre('Turbidez');
   final cloro = porNombre('Cloro residual libre');
   final coliformes = porNombre('Coliformes totales');
+  final nitratos = porNombre('Nitratos');
 
   group('clasificarValor', () {
     test('valor dentro de la banda de alerta resulta apto', () {
@@ -77,9 +78,9 @@ void main() {
     test('sin parametro critico gana el valor mas desviado', () {
       final r = motor.evaluarMuestra({
         ph.id: 5.9,
-        turbidez.id: 40,
+        nitratos.id: 80,
       });
-      expect(r.parametroLimitanteId, turbidez.id);
+      expect(r.parametroLimitanteId, nitratos.id);
     });
 
     test('el origen declarado se conserva en la medicion', () {
@@ -116,6 +117,57 @@ void main() {
 
     test('sin muestras devuelve cero y no divide por cero', () {
       expect(MotorEvaluacion.porcentajeConformidad([]), 0);
+    });
+  });
+
+  group('parametros indicativos', () {
+    test('la turbidez esta marcada como indicativa y dice por que', () {
+      expect(turbidez.indicativo, isTrue);
+      expect(turbidez.notaIndicativa, contains('laboratorio'));
+      expect(ph.indicativo, isFalse);
+    });
+
+    test('sigue clasificando el valor por si solo', () {
+      // La clasificacion individual se conserva: sirve para mostrarla al
+      // operario. Lo que cambia es que ya no arrastra a toda la muestra.
+      expect(motor.clasificarValor(turbidez, 40),
+          Clasificacion.incumplimiento);
+    });
+
+    test('una turbidez fuera de norma no reprueba la muestra', () {
+      final r = motor.evaluarMuestra({
+        ph.id: 7.2,
+        turbidez.id: 40,
+      });
+      expect(r.clasificacion, Clasificacion.apto);
+      expect(r.parametroLimitanteId, isNull);
+    });
+
+    test('pero la medicion si queda guardada con su valor', () {
+      final r = motor.evaluarMuestra({turbidez.id: 40});
+      final m = r.mediciones.singleWhere((m) => m.parametroId == turbidez.id);
+      expect(m.valor, 40);
+    });
+
+    test('nunca sale como parametro limitante', () {
+      // Empatan en incumplimiento, pero la turbidez esta mas desviada. Si
+      // votara, ella ganaria el limitante y el informe culparia al parametro
+      // que justamente no podemos sostener.
+      final r = motor.evaluarMuestra({
+        turbidez.id: 500,
+        ph.id: 5.4,
+      });
+      expect(r.clasificacion, Clasificacion.incumplimiento);
+      expect(r.parametroLimitanteId, ph.id);
+    });
+
+    test('una muestra de solo indicativos no se declara apta por omision', () {
+      // Sin parametros que decidan no hay veredicto que dar. Sale apto porque
+      // es el neutro del enum, pero criticosFaltantes es quien avisa que la
+      // muestra esta incompleta, y ahi si aparecen todos.
+      final r = motor.evaluarMuestra({turbidez.id: 900});
+      expect(r.clasificacion, Clasificacion.apto);
+      expect(motor.criticosFaltantes([turbidez.id]), isNotEmpty);
     });
   });
 

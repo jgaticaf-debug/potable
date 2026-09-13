@@ -201,6 +201,7 @@ class Parametro {
     this.alertaMax,
     this.critico = false,
     this.versionNorma = 'COGUANOR NTG 29001',
+    this.notaIndicativa,
     required this.descripcion,
   });
 
@@ -215,6 +216,14 @@ class Parametro {
 
   final bool critico;
   final String versionNorma;
+
+  // Parametros que se miden y se guardan, pero que no alcanzan para declarar
+  // cumplimiento. Si esta lleno, aqui va el porque, y eso es lo que la app le
+  // muestra al operario. Van juntos a proposito: un parametro no puede quedar
+  // marcado como indicativo sin decir la razon.
+  final String? notaIndicativa;
+  bool get indicativo => notaIndicativa != null;
+
   final String descripcion;
 
   String get rangoLegible {

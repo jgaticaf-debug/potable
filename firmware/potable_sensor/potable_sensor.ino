@@ -35,7 +35,15 @@
 #include <OneWire.h>  
 #include <Preferences.h>
 
-#define MODO_SIMULACION 1
+#define MODO_SIMULACION 0
+
+// Que sensores estan conectados de verdad. Un pin ADC sin nada no da cero:
+// flota y devuelve basura que parece una medicion. Los que esten en 0 no se
+// leen y no viajan en el JSON, asi que la app los deja en captura manual.
+#define TIENE_PH            1
+#define TIENE_TURBIDEZ      1
+#define TIENE_CONDUCTIVIDAD 0
+#define TIENE_TEMPERATURA   0
 
 static const char* IDENTIFICADOR = "ESP32-POZO1";
 
@@ -56,6 +64,26 @@ static const float VOLTAJE_REFERENCIA = 3.3f;
 
 static const float DIVISOR_TURBIDEZ = 1.5f;
 
+// El divisor en papel es 1.5, pero la cadena completa no lo cumple: los
+// resistores traen +-5%, el sensor se alimenta de VIN (4.8 V, no los 5.0 que
+// asume la curva de DFRobot) y el ADC del ESP32 lee por lo bajo en esta zona.
+// Este factor sale de una calibracion de un punto: agua limpia el 12/09/2026
+// dio 2.545 V crudos y el cero de la curva esta en 4.20.
+//
+// Calibrado con el vaso TAPADO, y no es un detalle. El sensor mide luz
+// infrarroja que cruza el agua; la del cuarto se le cuela al fototransistor y
+// el sensor la cuenta como si fuera la suya, o sea agua mas limpia de lo que
+// esta. Destapado el ruido era de 48 mV, tapado bajo a 12. La primera
+// calibracion se hizo destapada y quedo corrida 20 mV justo por eso.
+static const float AJUSTE_TURBIDEZ = 1.100f;
+
+// Arriba de este voltaje el agua se toma como limpia; abajo del vertice de la
+// curva la lectura se satura. La norma pide 5 NTU, asi que cualquier cosa por
+// encima de unas decenas ya es incumplimiento y no importa el numero exacto.
+static const float TURBIDEZ_V_LIMPIA = 4.2f;
+static const float TURBIDEZ_V_VERTICE = 2.56f;
+static const float TURBIDEZ_NTU_MAXIMA = 3000.0f;
+
 static const float TEMPERATURA_REFERENCIA = 25.0f;
 
 static const float PH_PENDIENTE_POR_DEFECTO = -5.70f;
@@ -73,6 +101,18 @@ bool hayCentralConectada = false;
 
 float phPendiente = PH_PENDIENTE_POR_DEFECTO;
 float phOffset = PH_OFFSET_POR_DEFECTO;
+
+// Calibracion de dos puntos. El primer patron se guarda aqui esperando al
+// segundo; con los dos se calcula la pendiente, que es lo que se degrada con
+// el uso del electrodo. Con un solo punto quedaria exacto en ese pH y cada
+// vez mas equivocado al alejarse, justo donde la norma decide apto o riesgo.
+bool hayPrimerPunto = false;
+float primerPuntoPh = 0.0f;
+float primerPuntoV = 0.0f;
+
+// Lectura continua por el serial. Sirve para ver el electrodo asentarse antes
+// de fijar un punto, en vez de adivinar cuando dejo de moverse.
+bool monitorContinuo = false;
 
 struct Lectura {
   float ph;
@@ -106,8 +146,11 @@ static float leerTemperatura() {
   return (grados == DEVICE_DISCONNECTED_C) ? NAN : grados;
 }
 
-static float leerPh(float temperatura) {
-  float voltios = aVoltios(leerCrudoFiltrado(PIN_PH));
+// La conversion va aparte de la lectura a proposito. El monitor necesita
+// imprimir el valor y el voltaje del que salio, y si cada uno llama al ADC por
+// su lado salen de momentos distintos: con la luz cambiando llego a imprimir
+// "3000 NTU (4.1858 V)", dos numeros que no pueden convivir.
+static float phDeVoltios(float voltios, float temperatura) {
   float ph = phPendiente * voltios + phOffset;
 
   if (!isnan(temperatura)) {
@@ -116,13 +159,30 @@ static float leerPh(float temperatura) {
   return constrain(ph, 0.0f, 14.0f);
 }
 
-static float leerTurbidez() {
-  float voltios = aVoltios(leerCrudoFiltrado(PIN_TURBIDEZ)) * DIVISOR_TURBIDEZ;
-
-  if (voltios > 4.2f) return 0.0f;
-  float ntu = -1120.4f * voltios * voltios + 5742.3f * voltios - 4352.9f;
-  return constrain(ntu, 0.0f, 4000.0f);
+static float leerPh(float temperatura) {
+  return phDeVoltios(aVoltios(leerCrudoFiltrado(PIN_PH)), temperatura);
 }
+
+static float voltiosTurbidez() {
+  return aVoltios(leerCrudoFiltrado(PIN_TURBIDEZ)) * DIVISOR_TURBIDEZ *
+         AJUSTE_TURBIDEZ;
+}
+
+static float turbidezDeVoltios(float voltios) {
+  if (voltios > TURBIDEZ_V_LIMPIA) return 0.0f;
+
+  // La curva de DFRobot es una parabola hacia abajo y su punto mas alto cae en
+  // TURBIDEZ_V_VERTICE. Pasado ahi la formula se devuelve, asi que el agua mas
+  // sucia daria menos NTU y al final cero. Probado con leche: 0.54 V salia
+  // "0.0 NTU" con el vaso casi blanco. Abajo del vertice el sensor ya no
+  // distingue cuanta hay, solo que hay muchisima, y eso es lo que se reporta.
+  if (voltios < TURBIDEZ_V_VERTICE) return TURBIDEZ_NTU_MAXIMA;
+
+  float ntu = -1120.4f * voltios * voltios + 5742.3f * voltios - 4352.9f;
+  return constrain(ntu, 0.0f, TURBIDEZ_NTU_MAXIMA);
+}
+
+static float leerTurbidez() { return turbidezDeVoltios(voltiosTurbidez()); }
 
 static float leerConductividad(float temperatura) {
   float voltios = aVoltios(leerCrudoFiltrado(PIN_TDS));
@@ -157,15 +217,22 @@ static Lectura tomarLectura() {
 #else
 static Lectura tomarLectura() {
   Lectura l;
-  l.temperatura = leerTemperatura();
 
-  l.ph = leerPh(l.temperatura);
-  delay(500);
-  l.conductividad = leerConductividad(l.temperatura);
-  delay(200);
-  l.turbidez = leerTurbidez();
+  l.temperatura = TIENE_TEMPERATURA ? leerTemperatura() : NAN;
 
-  l.valida = !isnan(l.temperatura);
+  // pH y TDS se leen alternados con una pausa: los electrodos se interfieren
+  // si se muestrean al mismo tiempo.
+  l.ph = TIENE_PH ? leerPh(l.temperatura) : NAN;
+
+  if (TIENE_PH && TIENE_CONDUCTIVIDAD) delay(500);
+  l.conductividad =
+      TIENE_CONDUCTIVIDAD ? leerConductividad(l.temperatura) : NAN;
+
+  if (TIENE_CONDUCTIVIDAD && TIENE_TURBIDEZ) delay(200);
+  l.turbidez = TIENE_TURBIDEZ ? leerTurbidez() : NAN;
+
+  l.valida = !isnan(l.ph) || !isnan(l.turbidez) ||
+             !isnan(l.conductividad) || !isnan(l.temperatura);
   return l;
 }
 #endif
@@ -176,10 +243,16 @@ static String comoJson(const Lectura& l) {
   doc["simulado"] = MODO_SIMULACION == 1;
   doc["ms"] = millis();
 
+  // Lo que no se midio simplemente no va. Mandar un cero seria peor: la app
+  // lo tomaria como una medicion valida y lo evaluaria contra la norma.
   JsonObject valores = doc["valores"].to<JsonObject>();
-  valores["ph"] = round(l.ph * 100) / 100.0;
-  valores["turbidez"] = round(l.turbidez * 100) / 100.0;
-  valores["conductividad"] = round(l.conductividad);
+  if (!isnan(l.ph)) valores["ph"] = round(l.ph * 100) / 100.0;
+  if (!isnan(l.turbidez)) {
+    valores["turbidez"] = round(l.turbidez * 100) / 100.0;
+  }
+  if (!isnan(l.conductividad)) {
+    valores["conductividad"] = round(l.conductividad);
+  }
   if (!isnan(l.temperatura)) {
     valores["temperatura"] = round(l.temperatura * 10) / 10.0;
   }
@@ -204,6 +277,85 @@ static void publicarEstado(const char* estado) {
   if (hayCentralConectada) caracteristicaEstado->notify();
 }
 
+static void guardarCalibracion() {
+  memoria.begin("potable", false);
+  memoria.putFloat("phPendiente", phPendiente);
+  memoria.putFloat("phOffset", phOffset);
+  memoria.end();
+}
+
+// Reflashear el sketch no borra la NVS, pero "Erase All Flash Before Sketch
+// Upload" si. Esto lo dice sin tener que sacar la sonda ni medir un patron.
+static void imprimirCalibracion() {
+  float salud = fabs(phPendiente / PH_PENDIENTE_POR_DEFECTO) * 100.0f;
+  bool deFabrica = phPendiente == PH_PENDIENTE_POR_DEFECTO &&
+                   phOffset == PH_OFFSET_POR_DEFECTO;
+
+  Serial.printf("calibracion pH: pendiente %.4f, offset %.4f (%.0f%% de la "
+                "nominal)\n", phPendiente, phOffset, salud);
+
+  if (deFabrica) {
+    Serial.println("OJO: son los valores por defecto. O nunca se calibro, o "
+                   "se borro la NVS y hay que restaurar el respaldo.");
+  }
+}
+
+// Primer patron: se guarda y se espera el segundo. Segundo patron: con los
+// dos puntos sale la recta completa.
+static void calibrar(float phPatron) {
+  if (phPatron < 0.0f || phPatron > 14.0f) {
+    publicarEstado("patron fuera de rango");
+    Serial.printf("patron invalido: %.2f\n", phPatron);
+    return;
+  }
+
+  float voltios = aVoltios(leerCrudoFiltrado(PIN_PH));
+
+  if (!hayPrimerPunto) {
+    hayPrimerPunto = true;
+    primerPuntoPh = phPatron;
+    primerPuntoV = voltios;
+
+    publicarEstado("primer punto listo");
+    Serial.printf("punto 1: pH %.2f a %.4f V. Enjuague y meta el otro patron\n",
+                  phPatron, voltios);
+    return;
+  }
+
+  // Si los dos patrones dan casi el mismo voltaje es que se midio el mismo
+  // dos veces, o el electrodo no esta respondiendo. Dividir ahi da un
+  // disparate y lo guardaria como si fuera bueno.
+  float saltoV = voltios - primerPuntoV;
+  if (fabs(saltoV) < 0.05f) {
+    publicarEstado("patrones demasiado parecidos");
+    Serial.printf("punto 2 a %.4f V, casi igual al punto 1 (%.4f V). "
+                  "Revise que sean patrones distintos y que el electrodo "
+                  "responda\n", voltios, primerPuntoV);
+    return;
+  }
+
+  phPendiente = (phPatron - primerPuntoPh) / saltoV;
+  phOffset = phPatron - phPendiente * voltios;
+  hayPrimerPunto = false;
+  guardarCalibracion();
+
+  // La pendiente contra la de fabrica dice como anda el electrodo: se
+  // degrada con el uso y es el primer sintoma de que hay que reemplazarlo.
+  float salud = fabs(phPendiente / PH_PENDIENTE_POR_DEFECTO) * 100.0f;
+
+  publicarEstado(salud < 70.0f || salud > 130.0f ? "calibrado, revise el electrodo"
+                                                 : "calibrado");
+  Serial.printf("calibrado con pH %.2f y %.2f: pendiente %.3f, offset %.3f "
+                "(%.0f%% de la nominal)\n",
+                primerPuntoPh, phPatron, phPendiente, phOffset, salud);
+
+  if (salud < 70.0f || salud > 130.0f) {
+    Serial.println("ADVERTENCIA: la pendiente se alejo mucho de la de "
+                   "fabrica. Electrodo gastado, mal enjuagado, o patrones "
+                   "vencidos.");
+  }
+}
+
 class ManejadorServidor : public BLEServerCallbacks {
   void onConnect(BLEServer* servidor) override {
     hayCentralConectada = true;
@@ -219,33 +371,60 @@ class ManejadorServidor : public BLEServerCallbacks {
   }
 };
 
+// Los mismos comandos entran por Bluetooth y por el monitor serie. Calibrar
+// desde el IDE es mucho mas comodo: el cable ya esta puesto y se ve lo que
+// imprime sin tener que ir al telefono.
+static void ejecutarComando(String comando) {
+  comando.trim();
+
+  if (comando == "leer") {
+    publicarEstado("midiendo");
+    publicarLectura();
+    publicarEstado("listo");
+    return;
+  }
+
+  if (comando == "monitor") {
+    monitorContinuo = !monitorContinuo;
+    Serial.println(monitorContinuo
+                       ? "monitor encendido, 'monitor' otra vez para apagarlo"
+                       : "monitor apagado");
+    return;
+  }
+
+  if (comando == "calibrar:reset") {
+    hayPrimerPunto = false;
+    publicarEstado("calibracion reiniciada");
+    Serial.println("calibracion reiniciada, mande el primer patron");
+    return;
+  }
+
+  if (comando.startsWith("calibrar:")) {
+    calibrar(comando.substring(9).toFloat());
+    return;
+  }
+
+  if (comando == "calibracion") {
+    imprimirCalibracion();
+    return;
+  }
+
+  if (comando == "ayuda" || comando == "?") {
+    Serial.println("leer            una lectura");
+    Serial.println("monitor         enciende o apaga la lectura continua");
+    Serial.println("calibracion     muestra la calibracion guardada del pH");
+    Serial.println("calibrar:7.00   fija un punto con ese patron");
+    Serial.println("calibrar:reset  olvida el primer punto");
+    return;
+  }
+
+  publicarEstado("comando desconocido");
+  Serial.printf("no entiendo '%s'. Escriba 'ayuda'\n", comando.c_str());
+}
+
 class ManejadorComando : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* caracteristica) override {
-    String comando = String(caracteristica->getValue().c_str());
-    comando.trim();
-
-    if (comando == "leer") {
-      publicarEstado("midiendo");
-      publicarLectura();
-      publicarEstado("listo");
-      return;
-    }
-
-    if (comando.startsWith("calibrar:")) {
-      float phConocido = comando.substring(9).toFloat();
-      float voltios = aVoltios(leerCrudoFiltrado(PIN_PH));
-      phOffset = phConocido - phPendiente * voltios;
-
-      memoria.begin("potable", false);
-      memoria.putFloat("phOffset", phOffset);
-      memoria.end();
-
-      publicarEstado("calibrado");
-      Serial.printf("calibrado en pH %.2f, offset %.3f\n", phConocido, phOffset);
-      return;
-    }
-
-    publicarEstado("comando desconocido");
+    ejecutarComando(String(caracteristica->getValue().c_str()));
   }
 };
 
@@ -264,6 +443,7 @@ void setup() {
   phPendiente = memoria.getFloat("phPendiente", PH_PENDIENTE_POR_DEFECTO);
   phOffset = memoria.getFloat("phOffset", PH_OFFSET_POR_DEFECTO);
   memoria.end();
+  imprimirCalibracion();
 
   BLEDevice::init(IDENTIFICADOR);
   BLEServer* servidor = BLEDevice::createServer();
@@ -299,6 +479,41 @@ void setup() {
 
 void loop() {
   static uint32_t ultimoLatido = 0;
+  static uint32_t ultimoMonitor = 0;
+
+  if (Serial.available()) {
+    ejecutarComando(Serial.readStringUntil('\n'));
+  }
+
+  // Muestra el voltaje crudo ademas del valor convertido: si el numero salta
+  // sin que pase nada, el problema es el cable, no la calibracion. Solo
+  // imprime los sensores encendidos, que son los que tienen algo conectado.
+  if (monitorContinuo && millis() - ultimoMonitor > 1000) {
+    ultimoMonitor = millis();
+
+#if MODO_SIMULACION
+    Serial.println("monitor no aplica en modo simulacion");
+    monitorContinuo = false;
+#else
+#if TIENE_PH
+    float voltiosPh = aVoltios(leerCrudoFiltrado(PIN_PH));
+    Serial.printf("pH %.2f   (%.4f V)\n", phDeVoltios(voltiosPh, NAN),
+                  voltiosPh);
+#endif
+#if TIENE_TURBIDEZ
+    float voltiosTurb = voltiosTurbidez();
+    Serial.printf("turbidez %.1f NTU   (%.4f V)\n",
+                  turbidezDeVoltios(voltiosTurb), voltiosTurb);
+#endif
+#if TIENE_CONDUCTIVIDAD
+    Serial.printf("conductividad %.0f uS/cm   (%.4f V)\n",
+                  leerConductividad(NAN), aVoltios(leerCrudoFiltrado(PIN_TDS)));
+#endif
+#if TIENE_TEMPERATURA
+    Serial.printf("temperatura %.1f C\n", leerTemperatura());
+#endif
+#endif
+  }
 
   if (!hayCentralConectada && millis() - ultimoLatido > 2000) {
     ultimoLatido = millis();

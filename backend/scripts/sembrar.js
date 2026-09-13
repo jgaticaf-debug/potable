@@ -20,6 +20,19 @@ const PARAMETROS = [
   {
     nombre: 'Turbidez', unidad: 'UNT', via: 'sensor',
     lmin: 0, lmax: 5, amin: null, amax: 1, critico: false,
+    notaIndicativa: 'El sensor mide cuanta luz atraviesa el agua, y entre 0 y '
+      + '5 UNT casi no cambia nada. Midiendo la misma muestra quince veces '
+      + 'seguidas dio entre 4 y 48 UNT: cuatro veces mas incertidumbre que el '
+      + 'limite de 5 que pide la norma. No es falta de calibracion, es el '
+      + 'alcance del aparato.\n\n'
+      + 'Por eso el valor se registra pero no decide si la muestra cumple. '
+      + 'Para eso hace falta laboratorio.\n\n'
+      + 'Donde si sirve: para ver que tan turbia esta el agua y como cambia '
+      + 'con el tiempo en un mismo punto. La contaminacion gruesa la detecta '
+      + 'sin problema.\n\n'
+      + 'Al medir, protega la muestra de la luz y no mueva nada durante la '
+      + 'lectura: la luz del ambiente es el error mas grande y hace que el '
+      + 'agua se vea mas sucia de lo que esta.',
     descripcion: 'Particulas en suspension. La norma admite hasta 5 UNT, pero '
       + 'arriba de 1 UNT ya se compromete la desinfeccion.',
   },
@@ -112,10 +125,10 @@ async function principal() {
       await cliente.query(
         `INSERT INTO parametros
            (nombre, unidad, via_captura, limite_min, limite_max,
-            alerta_min, alerta_max, critico, descripcion)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            alerta_min, alerta_max, critico, nota_indicativa, descripcion)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [p.nombre, p.unidad, p.via, p.lmin, p.lmax, p.amin, p.amax,
-          p.critico, p.descripcion],
+          p.critico, p.notaIndicativa ?? null, p.descripcion],
       );
     }
 

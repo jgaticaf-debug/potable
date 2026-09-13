@@ -4,13 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../semilla.dart';
+
 class BaseDatosLocal {
   BaseDatosLocal._();
 
   static const nombreArchivo = 'potable.db';
   // Si cambio el esquema tengo que subir esto Y agregar su bloque en
   // _migraciones. Si no, los telefonos ya instalados se quedan atras.
-  static const version = 3;
+  static const version = 4;
 
   static Database? _instancia;
 
@@ -130,7 +132,8 @@ class BaseDatosLocal {
         alerta_max    REAL,
         critico       INTEGER NOT NULL DEFAULT 0,
         version_norma TEXT    NOT NULL,
-        descripcion   TEXT    NOT NULL DEFAULT ''
+        descripcion   TEXT    NOT NULL DEFAULT '',
+        nota_indicativa TEXT
       )
     ''');
 
@@ -228,6 +231,7 @@ class BaseDatosLocal {
   static final Map<int, Future<void> Function(Database)> _migraciones = {
     2: _v2NombresDeZonaUnicos,
     3: _v3IdentidadEnElServidor,
+    4: _v4TurbidezIndicativa,
   };
 
   static Future<void> migrar(Database db, int anterior, int nueva) async {
@@ -266,6 +270,25 @@ class BaseDatosLocal {
       'CREATE UNIQUE INDEX idx_alertas_servidor ON alertas(id_servidor) '
       'WHERE id_servidor IS NOT NULL',
     );
+  }
+
+  static Future<void> _v4TurbidezIndicativa(Database db) async {
+    await db.execute('ALTER TABLE parametros ADD COLUMN nota_indicativa TEXT');
+
+    // El texto viaja en la siguiente sincronizacion con el servidor. Lo dejo
+    // puesto de una vez para que el aviso aparezca aunque la app siga sin red,
+    // que es justo donde el operario lo va a necesitar.
+    final turbidez = Semilla.parametros
+        .where((p) => p.notaIndicativa != null)
+        .toList();
+    for (final p in turbidez) {
+      await db.update(
+        'parametros',
+        {'nota_indicativa': p.notaIndicativa},
+        where: 'nombre = ?',
+        whereArgs: [p.nombre],
+      );
+    }
   }
 
   static Future<void> _v2NombresDeZonaUnicos(Database db) async {

@@ -418,6 +418,27 @@ class _CampoParametro extends StatelessWidget {
   final MotorEvaluacion motor;
   final VoidCallback onCambio;
 
+  void _explicarIndicativo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(parametro.nombre),
+        content: SingleChildScrollView(
+          child: Text(
+            parametro.notaIndicativa!,
+            style: const TextStyle(fontSize: 13, height: 1.45),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final texto = controlador.text.trim().replaceAll(',', '.');
@@ -453,6 +474,20 @@ class _CampoParametro extends StatelessWidget {
                       const Icon(Icons.priority_high_rounded,
                           size: 13, color: Tema.rojo),
                     ],
+                    if (parametro.indicativo) ...[
+                      const SizedBox(width: 2),
+                      IconButton(
+                        icon: const Icon(Icons.info_outline_rounded),
+                        iconSize: 14,
+                        color: Tema.ambar,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        constraints:
+                            const BoxConstraints(minWidth: 26, minHeight: 26),
+                        tooltip: 'Por que es indicativo',
+                        onPressed: () => _explicarIndicativo(context),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -460,6 +495,14 @@ class _CampoParametro extends StatelessWidget {
                   'Norma ${parametro.rangoLegible}',
                   style: const TextStyle(fontSize: 11, color: Colors.black54),
                 ),
+                if (parametro.indicativo)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 3),
+                    child: Text(
+                      'Indicativo: no decide el cumplimiento',
+                      style: TextStyle(fontSize: 10.5, color: Tema.ambar),
+                    ),
+                  ),
                 if (origen == ViaCaptura.sensor)
                   const Padding(
                     padding: EdgeInsets.only(top: 3),
