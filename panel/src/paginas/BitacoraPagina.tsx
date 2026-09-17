@@ -33,7 +33,7 @@ export function BitacoraPagina() {
       : registros.data.filter((r) => r.accion === filtro);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mx-auto flex h-full max-w-5xl flex-col space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-slate-800">Bitacora</h1>
         <p className="text-sm text-slate-500">
@@ -48,12 +48,12 @@ export function BitacoraPagina() {
         opciones={[{ valor: 'todas', texto: 'Todas las acciones' }, ...acciones]}
       />
 
-      <Tarjeta>
+      <Tarjeta desplazable>
         {visibles.length === 0 ? (
           <Vacio>No hay registros para ese filtro.</Vacio>
         ) : (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-slate-500">
+            <thead className="sticky top-0 z-10 bg-white text-left text-xs uppercase text-slate-500">
               <tr className="border-b border-slate-100">
                 <th className="px-5 py-3 font-medium">Fecha</th>
                 <th className="px-5 py-3 font-medium">Usuario</th>

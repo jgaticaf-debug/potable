@@ -62,6 +62,8 @@ export interface Parametro {
   alerta_max: number | null;
   critico: boolean;
   version_norma: string;
+  // Con texto, el parametro se mide y se guarda pero no decide. Turbidez.
+  nota_indicativa: string | null;
   descripcion: string;
 }
 

@@ -8,6 +8,7 @@ import {
   Boton,
   Campo,
   Cargando,
+  Casilla,
   Confirmacion,
   Etiqueta,
   Modal,
@@ -58,7 +59,7 @@ export function PuntosPagina() {
     zonas.data.find((z) => z.id === id)?.nombre ?? 'Sin zona';
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mx-auto flex h-full max-w-5xl flex-col space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-800">
           Puntos de muestreo
@@ -81,12 +82,12 @@ export function PuntosPagina() {
         </Aviso>
       )}
 
-      <Tarjeta>
+      <Tarjeta desplazable>
         {puntos.data.length === 0 ? (
           <Vacio>Todavia no hay puntos registrados.</Vacio>
         ) : (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-slate-500">
+            <thead className="sticky top-0 z-10 bg-white text-left text-xs uppercase text-slate-500">
               <tr className="border-b border-slate-100">
                 <th className="px-5 py-3 font-medium">Nombre</th>
                 <th className="px-5 py-3 font-medium">Zona</th>
@@ -260,14 +261,11 @@ function FormularioPunto({
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={instrumentado}
-            onChange={(e) => setInstrumentado(e.target.checked)}
-          />
-          Tiene sensor instalado
-        </label>
+        <Casilla
+          etiqueta="Tiene sensor instalado"
+          marcada={instrumentado}
+          alCambiar={setInstrumentado}
+        />
 
         <div className="flex justify-end gap-2 pt-2">
           <Boton type="button" variante="suave" onClick={alCerrar}>

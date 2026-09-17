@@ -128,8 +128,8 @@ void main() {
     });
 
     test('sigue clasificando el valor por si solo', () {
-      // La clasificacion individual se conserva: sirve para mostrarla al
-      // operario. Lo que cambia es que ya no arrastra a toda la muestra.
+      // Se conserva para mostrarla; lo que cambia es que ya no arrastra a
+      // toda la muestra.
       expect(motor.clasificarValor(turbidez, 40),
           Clasificacion.incumplimiento);
     });
@@ -150,9 +150,8 @@ void main() {
     });
 
     test('nunca sale como parametro limitante', () {
-      // Empatan en incumplimiento, pero la turbidez esta mas desviada. Si
-      // votara, ella ganaria el limitante y el informe culparia al parametro
-      // que justamente no podemos sostener.
+      // Empatan, pero la turbidez esta mas desviada: si votara ganaria el
+      // limitante y el informe culparia al que no podemos sostener.
       final r = motor.evaluarMuestra({
         turbidez.id: 500,
         ph.id: 5.4,
@@ -162,9 +161,8 @@ void main() {
     });
 
     test('una muestra de solo indicativos no se declara apta por omision', () {
-      // Sin parametros que decidan no hay veredicto que dar. Sale apto porque
-      // es el neutro del enum, pero criticosFaltantes es quien avisa que la
-      // muestra esta incompleta, y ahi si aparecen todos.
+      // Sale apto porque es el neutro del enum; quien avisa que la muestra
+      // esta incompleta es criticosFaltantes.
       final r = motor.evaluarMuestra({turbidez.id: 900});
       expect(r.clasificacion, Clasificacion.apto);
       expect(motor.criticosFaltantes([turbidez.id]), isNotEmpty);

@@ -4,9 +4,8 @@ param(
   [int]$Segundos = 6
 )
 
-# El monitor del Arduino IDE se cuelga seguido. Esto hace lo mismo: abre el
-# puerto, manda un comando si se lo doy, e imprime lo que conteste la placa.
-# El IDE tiene que estar sin el monitor abierto o el puerto sale ocupado.
+# El monitor del IDE se cuelga seguido. Esto hace lo mismo, pero el IDE tiene
+# que tener su monitor cerrado o el puerto sale ocupado.
 
 $puertoSerie = New-Object System.IO.Ports.SerialPort $Puerto, 115200, None, 8, one
 $puertoSerie.ReadTimeout = 500

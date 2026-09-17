@@ -2,7 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import { api } from '../api/cliente';
-import type { Clasificacion, Muestra, Parametro } from '../api/tipos';
+import type {
+  Clasificacion,
+  Medicion,
+  Muestra,
+  Parametro,
+} from '../api/tipos';
 import {
   Aviso,
   Cargando,
@@ -58,7 +63,7 @@ export function MuestrasPagina() {
       : (parametros.data?.find((p) => p.id === id)?.nombre ?? `#${id}`);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mx-auto flex h-full max-w-5xl flex-col space-y-4">
       <h1 className="text-2xl font-semibold text-slate-800">Muestras</h1>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -87,7 +92,7 @@ export function MuestrasPagina() {
         />
       </div>
 
-      <Tarjeta>
+      <Tarjeta desplazable>
         {filtradas.length === 0 ? (
           <Vacio>
             {(muestras.data ?? []).length === 0
@@ -96,7 +101,7 @@ export function MuestrasPagina() {
           </Vacio>
         ) : (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-slate-500">
+            <thead className="sticky top-0 z-10 bg-white text-left text-xs uppercase text-slate-500">
               <tr className="border-b border-slate-100">
                 <th className="px-5 py-3 font-medium">Fecha</th>
                 <th className="px-5 py-3 font-medium">Punto</th>
@@ -173,32 +178,11 @@ function DetalleMuestra({
           {muestra.mediciones.map((med) => {
             const p = parametros.find((x) => x.id === med.parametro_id);
             return (
-              <div key={med.parametro_id} className="flex gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-slate-800">
-                    {p?.nombre ?? `Parametro ${med.parametro_id}`}
-                    {p?.critico && (
-                      <span className="ml-2 text-xs font-normal text-incumplimiento">
-                        critico
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {p ? rango(p) : 'Sin limite'} · {med.origen}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-slate-800">
-                    {numero(med.valor)}{' '}
-                    <span className="text-xs font-normal text-slate-500">
-                      {p?.unidad}
-                    </span>
-                  </p>
-                  <Etiqueta tono={med.clasificacion as Clasificacion}>
-                    {CLASIFICACION[med.clasificacion]}
-                  </Etiqueta>
-                </div>
-              </div>
+              <FilaMedicion
+                key={med.parametro_id}
+                medicion={med}
+                parametro={p}
+              />
             );
           })}
         </div>
@@ -218,5 +202,71 @@ function DetalleMuestra({
         </p>
       </div>
     </Modal>
+  );
+}
+
+function FilaMedicion({
+  medicion,
+  parametro,
+}: {
+  medicion: Medicion;
+  parametro: Parametro | undefined;
+}) {
+  const [abierta, setAbierta] = useState(false);
+  const nota = parametro?.nota_indicativa ?? null;
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-slate-800">
+            {parametro?.nombre ?? `Parametro ${medicion.parametro_id}`}
+            {parametro?.critico && (
+              <span className="ml-2 text-xs font-normal text-incumplimiento">
+                critico
+              </span>
+            )}
+            {nota && (
+              <button
+                type="button"
+                onClick={() => setAbierta(!abierta)}
+                aria-expanded={abierta}
+                className="ml-2 text-xs font-normal text-riesgo underline
+                  underline-offset-2 hover:text-amber-700"
+              >
+                por que
+              </button>
+            )}
+          </p>
+          <p className="text-xs text-slate-500">
+            {parametro ? rango(parametro) : 'Sin limite'} · {medicion.origen}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold text-slate-800">
+            {numero(medicion.valor)}{' '}
+            <span className="text-xs font-normal text-slate-500">
+              {parametro?.unidad}
+            </span>
+          </p>
+          {/* Sin veredicto: un rojo dentro de una muestra apta se lee como
+              error de calculo. */}
+          {nota ? (
+            <Etiqueta tono="neutro">Indicativo</Etiqueta>
+          ) : (
+            <Etiqueta tono={medicion.clasificacion as Clasificacion}>
+              {CLASIFICACION[medicion.clasificacion]}
+            </Etiqueta>
+          )}
+        </div>
+      </div>
+
+      {nota && abierta && (
+        <p className="mt-3 whitespace-pre-line rounded-lg bg-amber-50 px-3 py-2
+          text-xs leading-relaxed text-amber-900">
+          {nota}
+        </p>
+      )}
+    </div>
   );
 }

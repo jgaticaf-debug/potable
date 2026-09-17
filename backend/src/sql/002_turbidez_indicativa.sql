@@ -1,13 +1,9 @@
--- Parametros que se miden y se guardan, pero que no alcanzan para declarar
--- cumplimiento contra la norma. Si la columna esta llena, aqui va el porque, y
--- eso es lo que la app le muestra al operario. Van juntos a proposito: un
--- parametro no puede quedar marcado como indicativo sin decir la razon.
+-- Si la columna tiene texto, el parametro se mide y se guarda pero no decide
+-- cumplimiento. El texto es lo que la app le muestra al operario.
 ALTER TABLE parametros ADD COLUMN IF NOT EXISTS nota_indicativa TEXT;
 
--- La turbidez pasa a indicativa. El SEN0189 mide luz transmitida, que entre
--- 0 y 5 UNT casi no cambia: midiendo la misma muestra dio entre 4 y 48 UNT,
--- cuatro veces mas incertidumbre que el limite de 5 que pide COGUANOR. No es
--- calibracion, es el alcance del aparato, y por eso no puede decidir.
+-- Turbidez: +-22 UNT de incertidumbre contra el limite de 5 de COGUANOR.
+-- No es calibracion, es el alcance del aparato.
 UPDATE parametros
 SET nota_indicativa =
   'El sensor mide cuanta luz atraviesa el agua, y entre 0 y 5 UNT casi no ' ||

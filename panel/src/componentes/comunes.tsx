@@ -1,9 +1,41 @@
+import { useId } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+
+// Capa sobre shadcn: las pantallas llaman Boton, Campo y Seleccion sin
+// saber que hay debajo. Si se cambia de libreria, se cambia aqui.
 
 export function Cargando({ texto = 'Cargando...' }: { texto?: string }) {
   return (
-    <div className="flex items-center gap-3 p-8 text-sm text-slate-500">
-      <span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-azul" />
+    // Tarda 200 ms en salir: si la consulta contesta rapido, mostrarla y
+    // quitarla es un parpadeo.
+    <div
+      role="status"
+      className="text-muted-foreground flex animate-aparecer items-center gap-3 p-8 text-sm [animation-delay:200ms] motion-reduce:animate-none"
+    >
+      <span className="border-muted border-t-primary size-4 animate-spin rounded-full border-2" />
       {texto}
     </div>
   );
@@ -23,9 +55,9 @@ export function Aviso({
   }[tono];
 
   return (
-    <div className={`rounded-xl border px-4 py-3 text-sm ${estilos}`}>
-      {children}
-    </div>
+    <Alert className={cn('animate-aparecer motion-reduce:animate-none', estilos)}>
+      <AlertDescription className="text-inherit">{children}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -33,19 +65,28 @@ type VarianteBoton = 'principal' | 'suave' | 'peligro';
 
 export function Boton({
   variante = 'principal',
-  className = '',
+  className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: VarianteBoton }) {
-  const estilos = {
-    principal: 'bg-azul text-white hover:bg-azul-oscuro',
-    suave: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50',
-    peligro: 'bg-white text-incumplimiento border border-red-200 hover:bg-red-50',
-  }[variante];
+  // Los nombres de afuera son los de siempre; aqui se traducen.
+  const equivalente = {
+    principal: 'default',
+    suave: 'outline',
+    peligro: 'outline',
+  }[variante] as 'default' | 'outline';
 
   return (
-    <button
+    <Button
       {...props}
-      className={`rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${estilos} ${className}`}
+      variant={equivalente}
+      className={cn(
+        // outline no fija color de texto: en la barra oscura salia blanco
+        // sobre blanco.
+        variante === 'suave' && 'text-foreground',
+        variante === 'peligro' &&
+          'text-incumplimiento border-red-200 hover:bg-red-50 hover:text-incumplimiento',
+        className,
+      )}
     />
   );
 }
@@ -53,22 +94,48 @@ export function Boton({
 export function Campo({
   etiqueta,
   ayuda,
+  className,
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & {
   etiqueta: string;
   ayuda?: string;
 }) {
+  // El label ya no envuelve al input, hay que unirlos con id. useId lo hace
+  // unico por instancia: uno fijo chocaria entre campos del mismo formulario.
+  const generado = useId();
+  const id = props.id ?? generado;
+
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">
-        {etiqueta}
-      </span>
-      <input
-        {...props}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-azul focus:ring-2 focus:ring-azul/20"
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{etiqueta}</Label>
+      <Input id={id} className={className} {...props} />
+      {ayuda && <p className="text-muted-foreground text-xs">{ayuda}</p>}
+    </div>
+  );
+}
+
+export function Casilla({
+  etiqueta,
+  marcada,
+  alCambiar,
+}: {
+  etiqueta: string;
+  marcada: boolean;
+  alCambiar: (v: boolean) => void;
+}) {
+  const id = useId();
+
+  return (
+    <div className="flex items-center gap-2">
+      <Checkbox
+        id={id}
+        checked={marcada}
+        onCheckedChange={(v) => alCambiar(v === true)}
       />
-      {ayuda && <span className="mt-1 block text-xs text-slate-500">{ayuda}</span>}
-    </label>
+      <Label htmlFor={id} className="font-normal">
+        {etiqueta}
+      </Label>
+    </div>
   );
 }
 
@@ -84,49 +151,64 @@ export function Seleccion({
   alCambiar: (v: string) => void;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">
-        {etiqueta}
-      </span>
-      <select
-        value={valor}
-        onChange={(e) => alCambiar(e.target.value)}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-azul"
-      >
-        {opciones.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.texto}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="grid gap-2">
+      <Label>{etiqueta}</Label>
+      <Select value={valor} onValueChange={alCambiar}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {opciones.map((o) => (
+            <SelectItem key={o.valor} value={o.valor}>
+              {o.texto}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
+// Con `desplazable` la tarjeta ocupa el alto que le sobra a la pagina y el
+// scroll queda adentro de ella. Asi el titulo, los filtros y el encabezado de
+// la tabla se quedan arriba, y solo corren las filas.
 export function Tarjeta({
   titulo,
   acciones,
+  desplazable = false,
   children,
 }: {
   titulo?: string;
   acciones?: ReactNode;
+  desplazable?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white">
+    <section
+      className={cn(
+        'bg-card animate-aparecer rounded-xl border shadow-sm motion-reduce:animate-none',
+        desplazable && 'flex min-h-0 flex-1 flex-col overflow-hidden',
+      )}
+    >
       {(titulo || acciones) && (
-        <header className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4">
-          <h2 className="font-semibold text-slate-800">{titulo}</h2>
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b px-5 py-4">
+          <h2 className="font-semibold">{titulo}</h2>
           {acciones}
         </header>
       )}
-      {children}
+      {desplazable ? (
+        <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+      ) : (
+        children
+      )}
     </section>
   );
 }
 
 export function Vacio({ children }: { children: ReactNode }) {
-  return <p className="p-8 text-center text-sm text-slate-500">{children}</p>;
+  return (
+    <p className="text-muted-foreground p-8 text-center text-sm">{children}</p>
+  );
 }
 
 export function Modal({
@@ -138,19 +220,17 @@ export function Modal({
   alCerrar: () => void;
   children: ReactNode;
 }) {
+  // Radix trae lo que el modal de antes no tenia: Escape, trampa de foco y
+  // rol de dialogo.
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
-      onMouseDown={alCerrar}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">{titulo}</h2>
+    <Dialog open onOpenChange={(abierto) => !abierto && alCerrar()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{titulo}</DialogTitle>
+        </DialogHeader>
         {children}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -158,6 +238,7 @@ export function Confirmacion({
   titulo,
   mensaje,
   textoAccion = 'Eliminar',
+  textoTrabajando = 'Eliminando...',
   trabajando = false,
   alConfirmar,
   alCerrar,
@@ -165,24 +246,30 @@ export function Confirmacion({
   titulo: string;
   mensaje: ReactNode;
   textoAccion?: string;
+  textoTrabajando?: string;
   trabajando?: boolean;
   alConfirmar: () => void;
   alCerrar: () => void;
 }) {
   return (
-    <Modal titulo={titulo} alCerrar={alCerrar}>
-      <div className="space-y-5 text-sm text-slate-600">
-        <div>{mensaje}</div>
-        <div className="flex justify-end gap-2">
+    <Dialog open onOpenChange={(abierto) => !abierto && alCerrar()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{titulo}</DialogTitle>
+          <DialogDescription asChild>
+            <div>{mensaje}</div>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
           <Boton variante="suave" onClick={alCerrar}>
             Cancelar
           </Boton>
           <Boton variante="peligro" disabled={trabajando} onClick={alConfirmar}>
-            {trabajando ? 'Eliminando...' : textoAccion}
+            {trabajando ? textoTrabajando : textoAccion}
           </Boton>
-        </div>
-      </div>
-    </Modal>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -194,15 +281,15 @@ export function Etiqueta({
   children: ReactNode;
 }) {
   const estilos = {
-    apto: 'bg-emerald-50 text-apto',
-    riesgo: 'bg-amber-50 text-riesgo',
-    incumplimiento: 'bg-red-50 text-incumplimiento',
-    neutro: 'bg-slate-100 text-slate-600',
+    apto: 'bg-emerald-50 text-apto border-emerald-200',
+    riesgo: 'bg-amber-50 text-riesgo border-amber-200',
+    incumplimiento: 'bg-red-50 text-incumplimiento border-red-200',
+    neutro: 'bg-slate-100 text-slate-600 border-slate-200',
   }[tono];
 
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${estilos}`}>
+    <Badge variant="outline" className={cn('rounded-full', estilos)}>
       {children}
-    </span>
+    </Badge>
   );
 }

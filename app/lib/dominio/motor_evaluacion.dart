@@ -79,10 +79,8 @@ class MotorEvaluacion {
       );
     }
 
-    // Los indicativos se miden y se guardan, pero no votan. La turbidez es el
-    // caso: el sensor tiene +-22 UNT de incertidumbre contra un limite de 5, o
-    // sea que su veredicto seria una moneda al aire. Dejarlo decidir ensuciaria
-    // la clasificacion de toda la muestra con ruido del instrumento.
+    // Los indicativos se miden y se guardan, pero no votan. El de turbidez
+    // tiene +-22 UNT contra un limite de 5: seria una moneda al aire.
     final decisivas =
         mediciones.where((m) => !(parametroPorId(m.parametroId)?.indicativo ?? false));
 

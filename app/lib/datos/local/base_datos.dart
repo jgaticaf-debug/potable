@@ -275,9 +275,8 @@ class BaseDatosLocal {
   static Future<void> _v4TurbidezIndicativa(Database db) async {
     await db.execute('ALTER TABLE parametros ADD COLUMN nota_indicativa TEXT');
 
-    // El texto viaja en la siguiente sincronizacion con el servidor. Lo dejo
-    // puesto de una vez para que el aviso aparezca aunque la app siga sin red,
-    // que es justo donde el operario lo va a necesitar.
+    // Lo pongo de una vez para que el aviso salga aun sin red, que es donde
+    // el operario lo necesita.
     final turbidez = Semilla.parametros
         .where((p) => p.notaIndicativa != null)
         .toList();

@@ -8,6 +8,7 @@ import {
   Boton,
   Campo,
   Cargando,
+  Casilla,
   Confirmacion,
   Etiqueta,
   Modal,
@@ -50,7 +51,7 @@ export function UsuariosPagina() {
   if (lista.error) return <Aviso>{lista.error.message}</Aviso>;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto flex h-full max-w-4xl flex-col space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-slate-800">Usuarios</h1>
         <Boton onClick={() => setEditando('nuevo')}>Nuevo usuario</Boton>
@@ -58,12 +59,12 @@ export function UsuariosPagina() {
 
       {error && <Aviso>{error}</Aviso>}
 
-      <Tarjeta>
+      <Tarjeta desplazable>
         {lista.data.length === 0 ? (
           <Vacio>Todavia no hay cuentas registradas.</Vacio>
         ) : (
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-slate-500">
+            <thead className="sticky top-0 z-10 bg-white text-left text-xs uppercase text-slate-500">
               <tr className="border-b border-slate-100">
                 <th className="px-5 py-3 font-medium">Nombre</th>
                 <th className="px-5 py-3 font-medium">Correo</th>
@@ -220,14 +221,11 @@ function FormularioUsuario({
           }
         />
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={activo}
-            onChange={(e) => setActivo(e.target.checked)}
-          />
-          Cuenta activa
-        </label>
+        <Casilla
+          etiqueta="Cuenta activa"
+          marcada={activo}
+          alCambiar={setActivo}
+        />
 
         <div className="flex justify-end gap-2 pt-2">
           <Boton type="button" variante="suave" onClick={alCerrar}>

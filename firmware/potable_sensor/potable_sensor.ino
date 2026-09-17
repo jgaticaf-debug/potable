@@ -64,22 +64,13 @@ static const float VOLTAJE_REFERENCIA = 3.3f;
 
 static const float DIVISOR_TURBIDEZ = 1.5f;
 
-// El divisor en papel es 1.5, pero la cadena completa no lo cumple: los
-// resistores traen +-5%, el sensor se alimenta de VIN (4.8 V, no los 5.0 que
-// asume la curva de DFRobot) y el ADC del ESP32 lee por lo bajo en esta zona.
-// Este factor sale de una calibracion de un punto: agua limpia el 12/09/2026
-// dio 2.545 V crudos y el cero de la curva esta en 4.20.
-//
-// Calibrado con el vaso TAPADO, y no es un detalle. El sensor mide luz
-// infrarroja que cruza el agua; la del cuarto se le cuela al fototransistor y
-// el sensor la cuenta como si fuera la suya, o sea agua mas limpia de lo que
-// esta. Destapado el ruido era de 48 mV, tapado bajo a 12. La primera
-// calibracion se hizo destapada y quedo corrida 20 mV justo por eso.
+// El divisor en papel es 1.5 pero la cadena no lo cumple: resistores al +-5%,
+// alimentacion de VIN (4.8 V, no 5.0) y el ADC leyendo por lo bajo. Sale de
+// calibrar a un punto, 2.545 V crudos en agua limpia contra el cero en 4.20.
+// Medido con el vaso TAPADO: la luz del cuarto mete 48 mV de ruido.
 static const float AJUSTE_TURBIDEZ = 1.100f;
 
-// Arriba de este voltaje el agua se toma como limpia; abajo del vertice de la
-// curva la lectura se satura. La norma pide 5 NTU, asi que cualquier cosa por
-// encima de unas decenas ya es incumplimiento y no importa el numero exacto.
+// Arriba de V_LIMPIA es agua limpia; abajo del vertice la lectura satura.
 static const float TURBIDEZ_V_LIMPIA = 4.2f;
 static const float TURBIDEZ_V_VERTICE = 2.56f;
 static const float TURBIDEZ_NTU_MAXIMA = 3000.0f;
@@ -146,10 +137,8 @@ static float leerTemperatura() {
   return (grados == DEVICE_DISCONNECTED_C) ? NAN : grados;
 }
 
-// La conversion va aparte de la lectura a proposito. El monitor necesita
-// imprimir el valor y el voltaje del que salio, y si cada uno llama al ADC por
-// su lado salen de momentos distintos: con la luz cambiando llego a imprimir
-// "3000 NTU (4.1858 V)", dos numeros que no pueden convivir.
+// Conversion aparte de la lectura: el monitor imprime el valor y el voltaje
+// del que salio, y con dos llamadas al ADC salian de momentos distintos.
 static float phDeVoltios(float voltios, float temperatura) {
   float ph = phPendiente * voltios + phOffset;
 
@@ -171,11 +160,8 @@ static float voltiosTurbidez() {
 static float turbidezDeVoltios(float voltios) {
   if (voltios > TURBIDEZ_V_LIMPIA) return 0.0f;
 
-  // La curva de DFRobot es una parabola hacia abajo y su punto mas alto cae en
-  // TURBIDEZ_V_VERTICE. Pasado ahi la formula se devuelve, asi que el agua mas
-  // sucia daria menos NTU y al final cero. Probado con leche: 0.54 V salia
-  // "0.0 NTU" con el vaso casi blanco. Abajo del vertice el sensor ya no
-  // distingue cuanta hay, solo que hay muchisima, y eso es lo que se reporta.
+  // La curva es una parabola: pasado el vertice se devuelve y el agua mas
+  // sucia daria menos. Con leche daba 0.0 NTU y el vaso casi blanco.
   if (voltios < TURBIDEZ_V_VERTICE) return TURBIDEZ_NTU_MAXIMA;
 
   float ntu = -1120.4f * voltios * voltios + 5742.3f * voltios - 4352.9f;
@@ -284,8 +270,8 @@ static void guardarCalibracion() {
   memoria.end();
 }
 
-// Reflashear el sketch no borra la NVS, pero "Erase All Flash Before Sketch
-// Upload" si. Esto lo dice sin tener que sacar la sonda ni medir un patron.
+// Reflashear no borra la NVS; "Erase All Flash" si. Esto lo dice sin sacar
+// la sonda.
 static void imprimirCalibracion() {
   float salud = fabs(phPendiente / PH_PENDIENTE_POR_DEFECTO) * 100.0f;
   bool deFabrica = phPendiente == PH_PENDIENTE_POR_DEFECTO &&
@@ -485,9 +471,7 @@ void loop() {
     ejecutarComando(Serial.readStringUntil('\n'));
   }
 
-  // Muestra el voltaje crudo ademas del valor convertido: si el numero salta
-  // sin que pase nada, el problema es el cable, no la calibracion. Solo
-  // imprime los sensores encendidos, que son los que tienen algo conectado.
+  // Con el voltaje crudo al lado: si salta sin que pase nada, es el cable.
   if (monitorContinuo && millis() - ultimoMonitor > 1000) {
     ultimoMonitor = millis();
 
