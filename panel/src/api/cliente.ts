@@ -11,10 +11,11 @@ import type {
   Zona,
 } from './tipos';
 
-const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(
-  /\/+$/,
-  '',
-);
+// ?? no atrapa la cadena vacia, y una variable mal puesta en el proveedor
+// llega vacia. Sin esto las peticiones se vuelven relativas, el panel se las
+// hace a si mismo y contesta su propio index.html.
+const BASE = (import.meta.env.VITE_API_URL?.trim() || 'http://localhost:3000')
+  .replace(/\/+$/, '');
 
 const LLAVE_TOKEN = 'potable.token';
 
