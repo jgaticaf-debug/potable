@@ -11,11 +11,24 @@ import type {
   Zona,
 } from './tipos';
 
-// ?? no atrapa la cadena vacia, y una variable mal puesta en el proveedor
-// llega vacia. Sin esto las peticiones se vuelven relativas, el panel se las
-// hace a si mismo y contesta su propio index.html.
-const BASE = (import.meta.env.VITE_API_URL?.trim() || 'http://localhost:3000')
-  .replace(/\/+$/, '');
+// La URL se resuelve al cargar la pagina, no al compilar: config.js lo escribe
+// el contenedor al arrancar, con la variable del proveedor. Asi cambiarla no
+// obliga a reconstruir, y no depende de que el build reciba la variable.
+//
+// El || y no ?? es a proposito: una variable mal puesta llega vacia, y con ??
+// la base quedaria relativa, el panel se pediria el login a si mismo y
+// recibiria su propio index.html.
+declare global {
+  interface Window {
+    __API_URL__?: string;
+  }
+}
+
+const BASE = (
+  window.__API_URL__?.trim() ||
+  import.meta.env.VITE_API_URL?.trim() ||
+  'http://localhost:3000'
+).replace(/\/+$/, '');
 
 const LLAVE_TOKEN = 'potable.token';
 

@@ -24,7 +24,7 @@ WORKDIR /app
 
 RUN npm install -g serve
 COPY --from=construccion /app/dist ./dist
+COPY arranque.sh ./
+RUN chmod +x arranque.sh
 
-# -s reescribe todo a index.html: sin eso, entrar directo a /alertas da 404
-# porque ese archivo no existe, las rutas las resuelve el router del navegador.
-CMD ["sh", "-c", "serve dist -s -l ${PORT:-3000}"]
+CMD ["./arranque.sh"]
