@@ -1,0 +1,6 @@
+# Sin esto, el COPY meteria el node_modules de Windows a la imagen de Linux y
+# taparia el que se acaba de instalar adentro.
+node_modules
+dist
+.env
+.git
